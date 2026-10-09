@@ -1,0 +1,4 @@
+- The approach of recruiting and stabilizing the alveoli
+- OLS combined with mild permissive hypercapnia is termed **lung protective ventilation**
+- How do you know OLS has been achieved? Most studies have used reaching FiO2 of 0.25 to 0.30 as the surrogate marker that the lungs have opened. 
+- OLS and LPV can be done with both CMV and HFV. If high pressures are required, it may be easier to achieve with HFV. 

@@ -1,0 +1,5 @@
+- Four studies, two each with HFOV and HFJV.
+- A systematic review of the four studies does not show any benefit. 
+- Individually
+	- Keszler et al in their study on the use of HFJV in neonates with PIE showed faster resolution in the HFJV group (and also in the cross-group)
+	- HIFO trial showed an improved gas exchange and lesser incidence of new air leaks without any effect on the existing air leaks. 

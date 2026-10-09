@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HFV — Corner & Resonant Frequency: Impedance, Lung Vibration & Alveolar Excursion</title>
+<style>
+  :root{
+    --bg:#0e1726; --panel:#16233b; --panel2:#1d2f4d; --ink:#e8eef7; --muted:#9bb0cd;
+    --line:#2c4063; --accent:#37c2ff; --good:#36d399; --warn:#fbbd23; --bad:#f87272;
+    --alv:#a78bfa; --aw:#34d399; --imp:#37c2ff; --grid:#22344f; --fc:#fbbd23; --f0:#f87272;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45}
+  header{padding:16px 22px;background:linear-gradient(120deg,#16233b,#0e1726);border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:20px;letter-spacing:.2px}
+  header p{margin:5px 0 0;color:var(--muted);font-size:13px;max-width:980px}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 64px)}
+  .controls{background:var(--panel);border-right:1px solid var(--line);padding:16px 16px 40px;overflow:auto}
+  .main{padding:16px 18px 48px;overflow:auto}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  h2:first-child{margin-top:0}
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .presets button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 7px;font-size:12px;cursor:pointer;text-align:left;transition:.12s}
+  .presets button:hover{border-color:var(--accent)}
+  .presets button.active{background:var(--accent);color:#03263a;border-color:var(--accent);font-weight:600}
+  .presets button small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+  .presets button.active small{color:#0a3a56}
+  .slider{margin:13px 0}
+  .slider label{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:3px}
+  .slider label .val{font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+  .slider label .unit{color:var(--muted);font-weight:400;font-size:11px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:4px}
+  .hint{font-size:11px;color:var(--muted);margin-top:2px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .card .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .card .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .card .s{font-size:10.5px;color:var(--muted);margin-top:1px}
+  .card.fc .v{color:var(--fc)} .card.f0 .v{color:var(--f0)} .card.imp .v{color:var(--imp)}
+  .panelbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:14px 0}
+  .panelbox h3{margin:0 0 4px;font-size:14px}
+  .panelbox .sub{color:var(--muted);font-size:12px;margin:0 0 10px}
+  canvas{display:block;width:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;margin-top:8px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .swatch{width:14px;height:4px;border-radius:3px;display:inline-block}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .risk{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+  .risk.low{background:rgba(54,211,153,.15);color:var(--good);border:1px solid var(--good)}
+  .risk.mod{background:rgba(251,189,35,.15);color:var(--warn);border:1px solid var(--warn)}
+  .risk.high{background:rgba(248,114,114,.15);color:var(--bad);border:1px solid var(--bad)}
+  .teach{font-size:13px;color:#cdddf2}
+  .teach b{color:var(--ink)}
+  .teach ul{margin:6px 0 6px 2px;padding-left:18px}
+  .teach li{margin:4px 0}
+  .grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+  .eqrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);flex-wrap:wrap}
+  .eqrow:last-child{border-bottom:none}
+  .eq{font-family:"SFMono-Regular",Consolas,monospace;font-size:13px;color:var(--ink)}
+  .eq .hl{color:var(--accent)}
+  .eqval{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;color:var(--muted);text-align:right}
+  .eqval b{color:var(--good)}
+  .toggle{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:10px}
+  .toggle input{accent-color:var(--accent)}
+  .pill{display:inline-block;font-size:10px;padding:1px 8px;border-radius:10px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);margin-left:6px}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}.controls{border-right:none;border-bottom:1px solid var(--line)}.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+  footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Corner &amp; Resonant Frequency in HFV — Impedance, Lung Vibration &amp; Alveolar Excursion</h1>
+  <p>The neonatal respiratory system behaves like a series <b>R–I–C</b> circuit. Move the lung mechanics and the oscillator frequency, and watch the impedance |Z| change, the corner (f<sub>c</sub>) and resonant (f<sub>0</sub>) frequencies shift, and the alveoli vibrate. Built for residents/fellows — every value is computed live from the formulas shown.</p>
+</header>
+
+<div class="wrap">
+  <!-- CONTROLS -->
+  <aside class="controls">
+    <h2>Clinical preset</h2>
+    <div class="presets" id="presets"></div>
+
+    <h2>Lung mechanics</h2>
+    <div class="slider">
+      <label>Compliance (C) <span><span class="val" id="vC"></span> <span class="unit">mL/cmH₂O</span></span></label>
+      <input type="range" id="C" min="0.1" max="8" step="0.05">
+      <div class="hint">Volume per unit pressure. ↓C in RDS/HMD → raises both f<sub>c</sub> and f<sub>0</sub>.</div>
+    </div>
+    <div class="slider">
+      <label>Resistance (R) <span><span class="val" id="vR"></span> <span class="unit">cmH₂O·s/L</span></span></label>
+      <input type="range" id="R" min="2" max="300" step="1">
+      <div class="hint">↑R (MAS/BPD/narrow ETT) → <b>lowers</b> f<sub>c</sub>; sets the damping.</div>
+    </div>
+    <div class="slider">
+      <label>Inertance (I) <span><span class="val" id="vI"></span> <span class="unit">cmH₂O·s²/L</span></span></label>
+      <input type="range" id="I" min="0.005" max="0.045" step="0.001">
+      <div class="hint">Gas/tissue mass term. Dominates above f<sub>0</sub>; lower I → higher f<sub>0</sub>.</div>
+    </div>
+
+    <h2>Oscillator</h2>
+    <div class="slider">
+      <label>Operating frequency (f) <span><span class="val" id="vf"></span> <span class="unit">Hz</span></span></label>
+      <input type="range" id="f" min="2" max="40" step="0.5">
+      <div class="hint" id="fHint"></div>
+    </div>
+    <div class="slider">
+      <label>Airway amplitude (ΔP<sub>aw</sub>) <span><span class="val" id="vP"></span> <span class="unit">cmH₂O</span></span></label>
+      <input type="range" id="P" min="10" max="80" step="1">
+      <div class="hint">Peak-to-peak pressure swing applied at the airway opening.</div>
+    </div>
+
+    <h2>Display</h2>
+    <label class="toggle"><input type="checkbox" id="tImp" checked> Impedance |Z(f)|</label>
+    <label class="toggle"><input type="checkbox" id="tTrans" checked> Pressure transmission / excursion T(f)</label>
+    <label class="toggle"><input type="checkbox" id="tAnim" checked> Animate the lung</label>
+    <label class="toggle"><input type="checkbox" id="tLog" checked> Log frequency axis</label>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="cards">
+      <div class="card"><div class="k">Time constant τ = RC</div><div class="v" id="cTau">—</div><div class="s">ms</div></div>
+      <div class="card fc"><div class="k">Corner freq f<sub>c</sub></div><div class="v" id="cFc">—</div><div class="s">1 / (2πRC)</div></div>
+      <div class="card f0"><div class="k">Resonant freq f<sub>0</sub></div><div class="v" id="cF0">—</div><div class="s">1 / (2π√(IC))</div></div>
+      <div class="card imp"><div class="k">|Z| at operating f</div><div class="v" id="cZ">—</div><div class="s">cmH₂O·s/L</div></div>
+      <div class="card"><div class="k">Damping (Q = √(I/C)/R)</div><div class="v" id="cQ">—</div><div class="s" id="cQs">—</div></div>
+      <div class="card"><div class="k">P<sub>alv</sub> / P<sub>aw</sub> at f</div><div class="v" id="cT">—</div><div class="s">transmission ratio</div></div>
+      <div class="card"><div class="k">Alveolar excursion</div><div class="v" id="cEx">—</div><div class="s">% of quasi-static V<sub>T</sub></div></div>
+      <div class="card"><div class="k">Operating zone</div><div class="v" style="font-size:15px"><span id="cZone" class="risk low">—</span></div><div class="s" id="cZoneS">—</div></div>
+    </div>
+
+    <!-- IMPEDANCE / TRANSMISSION CHART -->
+    <div class="panelbox">
+      <h3>Frequency response of the lung <span class="pill">drag the f slider — the white dot moves</span></h3>
+      <p class="sub">|Z| (blue) is the pressure cost per unit oscillatory flow. It falls steeply through the <b style="color:var(--fc)">corner frequency f<sub>c</sub></b>, bottoms out at the <b style="color:var(--f0)">resonant frequency f<sub>0</sub></b> (where elastic and inertive reactance cancel, so |Z| = R), then rises again. Transmission to the alveoli (purple) is highest at low frequency and at resonance.</p>
+      <canvas id="chart" height="340"></canvas>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--imp)"></span> |Z| impedance</span>
+        <span><span class="swatch" style="background:var(--alv)"></span> P<sub>alv</sub>/P<sub>aw</sub> &amp; relative excursion</span>
+        <span><span class="swatch" style="background:var(--fc)"></span> corner f<sub>c</sub></span>
+        <span><span class="swatch" style="background:var(--f0)"></span> resonant f<sub>0</sub></span>
+        <span><span class="dot" style="background:#fff"></span> operating point</span>
+      </div>
+    </div>
+
+    <!-- LUNG MODEL + PRESSURE BARS -->
+    <div class="grid2">
+      <div class="panelbox" style="margin:0">
+        <h3>Lung vibration — alveolar excursion</h3>
+        <p class="sub">Amplitude of the alveolar "wiggle" ∝ tidal volume delivered at this frequency. Raise f and the excursion shrinks — the basis of tiny-V<sub>T</sub> HFOV.</p>
+        <canvas id="lung" height="260"></canvas>
+      </div>
+      <div class="panelbox" style="margin:0">
+        <h3>Pressure transmission</h3>
+        <p class="sub">Airway-opening amplitude is fixed; alveolar amplitude = T(f) × ΔP<sub>aw</sub>. When the lung is under-damped (low R), the alveolar bar can match or exceed the airway bar near resonance — over-transmission.</p>
+        <canvas id="bars" height="260"></canvas>
+        <div class="legend">
+          <span><span class="swatch" style="background:var(--aw)"></span> ΔP at airway opening</span>
+          <span><span class="swatch" style="background:var(--alv)"></span> ΔP at alveolus</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE EQUATIONS -->
+    <div class="panelbox">
+      <h3>The math, with your current values substituted</h3>
+      <p class="sub">Series respiratory impedance: <span class="eq">Z(f) = R + j·(<span class="hl">2πf·I</span> − <span class="hl">1/(2πf·C)</span>)</span> &nbsp;→&nbsp; <span class="eq">|Z| = √( R² + (2πfI − 1/(2πfC))² )</span></p>
+      <div id="eqs"></div>
+    </div>
+
+    <!-- TEACHING -->
+    <div class="panelbox">
+      <h3>How to read this clinically</h3>
+      <div class="teach" id="teach"></div>
+    </div>
+
+    <footer>
+      Model: linear series R–I–C respiratory impedance. f<sub>c</sub> = 1/(2πRC), f<sub>0</sub> = 1/(2π√(IC)); at resonance |Z| = R (minimum). Normalised alveolar excursion equals the pressure-transmission ratio because alveolar volume = C × alveolar pressure. Values are illustrative for teaching, grounded in Dr Deepak's HFV notes (Corner frequency, Resonant frequency, Pressure dampening).
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+// ---------- presets ----------  C in mL/cmH2O, R in cmH2O*s/L, I in cmH2O*s^2/L
+const PRESETS = [
+  {name:"Healthy neonate", sub:"long τ → low f꜀", C:4.0, R:60, I:0.020, f:8, P:25},
+  {name:"RDS / HMD", sub:"stiff lung", C:1.5, R:90, I:0.025, f:12, P:40},
+  {name:"Severe HMD", sub:"notes: f꜀ = 15.9 Hz", C:0.1, R:100, I:0.025, f:15, P:45},
+  {name:"Resonance ex.", sub:"notes: f₀ = 22.5 Hz", C:2.0, R:20, I:0.025, f:15, P:35},
+  {name:"BPD / high R", sub:"long τ → very low f꜀", C:3.0, R:200, I:0.030, f:8, P:40},
+  {name:"Resonance demo", sub:"low R → under-damped", C:6.0, R:2, I:0.030, f:12, P:25},
+];
+
+const S = {C:1.5, R:90, I:0.025, f:12, P:40};
+
+// ---------- physics ----------  use SI-ish: C in L/cmH2O
+function calc(){
+  const C = S.C/1000;            // L/cmH2O
+  const R = S.R, I = S.I;
+  const tau = R*C;                       // s
+  const fc = 1/(2*Math.PI*R*C);          // Hz
+  const f0 = 1/(2*Math.PI*Math.sqrt(I*C));// Hz
+  const Zchar = Math.sqrt(I/C);          // characteristic impedance
+  const Q = Zchar/R;                      // damping / quality factor
+  return {C,R,I,tau,fc,f0,Zchar,Q};
+}
+function Zmag(f,m){ const w=2*Math.PI*f; const X=w*m.I-1/(w*m.C); return Math.hypot(m.R,X); }
+function trans(f,m){ const w=2*Math.PI*f; return (1/(w*m.C))/Zmag(f,m); } // Palv/Paw = |Zc|/|Z| = normalised excursion
+
+// ---------- build controls ----------
+const presetWrap = $("presets");
+PRESETS.forEach((p,i)=>{
+  const b=document.createElement("button");
+  b.innerHTML = `${p.name}<small>${p.sub}</small>`;
+  b.onclick=()=>{ S.C=p.C;S.R=p.R;S.I=p.I;S.f=p.f;S.P=p.P; syncInputs(); setActive(i); render(); };
+  presetWrap.appendChild(b);
+});
+function setActive(i){ [...presetWrap.children].forEach((b,j)=>b.classList.toggle("active",j===i)); }
+
+function bind(id,key,fix){
+  const el=$(id);
+  el.value=S[key];
+  el.addEventListener("input",()=>{ S[key]=parseFloat(el.value); setActive(-1); render(); });
+}
+function syncInputs(){
+  $("C").value=S.C; $("R").value=S.R; $("I").value=S.I; $("f").value=S.f; $("P").value=S.P;
+}
+bind("C","C"); bind("R","R"); bind("I","I"); bind("f","f"); bind("P","P");
+["tImp","tTrans","tAnim","tLog"].forEach(id=>$(id).addEventListener("change",render));
+
+// ---------- chart ----------
+const chart=$("chart"), cx=chart.getContext("2d");
+const FMIN=0.5, FMAX=110;
+function xPos(f,w,pad){
+  if($("tLog").checked){ const a=Math.log10(FMIN),b=Math.log10(FMAX); return pad.l+(Math.log10(f)-a)/(b-a)*(w-pad.l-pad.r);}
+  return pad.l+(f-FMIN)/(FMAX-FMIN)*(w-pad.l-pad.r);
+}
+function drawChart(m){
+  const dpr=window.devicePixelRatio||1, w=chart.clientWidth, h=340;
+  chart.width=w*dpr; chart.height=h*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
+  cx.clearRect(0,0,w,h);
+  const pad={l:54,r:54,t:16,b:40};
+  // y-scale impedance: dynamic
+  let zmax=0; for(let f=FMIN;f<=FMAX;f+=0.5) zmax=Math.max(zmax,Zmag(f,m));
+  zmax=Math.min(zmax, Math.max(m.R*6, 60)); if(zmax<m.R*1.5) zmax=m.R*1.5;
+  const yZ=z=>pad.t+(1-Math.min(z,zmax)/zmax)*(h-pad.t-pad.b);
+  const yT=t=>pad.t+(1-Math.min(t,1.6)/1.6)*(h-pad.t-pad.b); // transmission scale 0..1.6
+  // grid
+  cx.strokeStyle="#22344f"; cx.fillStyle="#9bb0cd"; cx.font="11px sans-serif"; cx.lineWidth=1;
+  const ticks = $("tLog").checked?[0.5,1,2,5,10,20,50,100]:[0,10,20,30,40,60,80,100];
+  ticks.forEach(f=>{ const x=xPos(f,w,pad); cx.beginPath();cx.moveTo(x,pad.t);cx.lineTo(x,h-pad.b);cx.stroke();
+    cx.textAlign="center"; cx.fillText(f,x,h-pad.b+15); });
+  cx.textAlign="center"; cx.fillText("Frequency (Hz)", w/2, h-6);
+  // y left ticks (Z)
+  cx.textAlign="right";
+  for(let i=0;i<=4;i++){ const z=zmax*i/4; const y=yZ(z); cx.fillStyle="#37c2ff";
+    cx.beginPath();cx.moveTo(pad.l,y);cx.lineTo(pad.l-4,y);cx.stroke(); cx.fillText(z.toFixed(0),pad.l-7,y+3);}
+  cx.save();cx.translate(14,h/2);cx.rotate(-Math.PI/2);cx.textAlign="center";cx.fillStyle="#37c2ff";
+  cx.fillText("|Z|  (cmH₂O·s/L)",0,0);cx.restore();
+  // y right ticks (T)
+  if($("tTrans").checked){
+    cx.textAlign="left"; cx.fillStyle="#a78bfa";
+    for(let i=0;i<=4;i++){ const t=1.6*i/4; const y=yT(t); cx.beginPath();cx.moveTo(w-pad.r,y);cx.lineTo(w-pad.r+4,y);cx.stroke();
+      cx.fillText(t.toFixed(1),w-pad.r+7,y+3);}
+    cx.save();cx.translate(w-12,h/2);cx.rotate(Math.PI/2);cx.textAlign="center";cx.fillStyle="#a78bfa";
+    cx.fillText("P_alv / P_aw   (×)",0,0);cx.restore();
+    // T=1 reference
+    const y1=yT(1); cx.strokeStyle="rgba(167,139,250,.35)"; cx.setLineDash([4,4]);
+    cx.beginPath();cx.moveTo(pad.l,y1);cx.lineTo(w-pad.r,y1);cx.stroke();cx.setLineDash([]);
+  }
+  // fc & f0 markers
+  function marker(f,color,label){
+    if(f<FMIN||f>FMAX) return; const x=xPos(f,w,pad);
+    cx.strokeStyle=color; cx.lineWidth=1.5; cx.setLineDash([5,4]);
+    cx.beginPath();cx.moveTo(x,pad.t);cx.lineTo(x,h-pad.b);cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle=color; cx.textAlign="center"; cx.font="bold 11px sans-serif";
+    cx.fillText(label,x,pad.t+11); cx.font="11px sans-serif";
+  }
+  marker(m.fc,"#fbbd23","f꜀ "+m.fc.toFixed(1));
+  marker(m.f0,"#f87272","f₀ "+m.f0.toFixed(1));
+  // transmission curve
+  if($("tTrans").checked){
+    cx.strokeStyle="#a78bfa"; cx.lineWidth=2.4; cx.beginPath();
+    let first=true; for(let f=FMIN;f<=FMAX;f+=0.25){ const x=xPos(f,w,pad),y=yT(trans(f,m)); first?(cx.moveTo(x,y),first=false):cx.lineTo(x,y);} cx.stroke();
+  }
+  // impedance curve
+  if($("tImp").checked){
+    cx.strokeStyle="#37c2ff"; cx.lineWidth=2.6; cx.beginPath();
+    let first=true; for(let f=FMIN;f<=FMAX;f+=0.25){ const x=xPos(f,w,pad),y=yZ(Zmag(f,m)); first?(cx.moveTo(x,y),first=false):cx.lineTo(x,y);} cx.stroke();
+  }
+  // operating point
+  const xo=xPos(S.f,w,pad);
+  cx.strokeStyle="rgba(255,255,255,.5)"; cx.lineWidth=1; cx.setLineDash([3,3]);
+  cx.beginPath();cx.moveTo(xo,pad.t);cx.lineTo(xo,h-pad.b);cx.stroke();cx.setLineDash([]);
+  if($("tImp").checked){ const y=yZ(Zmag(S.f,m)); cx.fillStyle="#fff"; cx.beginPath();cx.arc(xo,y,5,0,7);cx.fill();
+    cx.strokeStyle="#37c2ff";cx.lineWidth=2;cx.stroke();}
+  if($("tTrans").checked){ const y=yT(trans(S.f,m)); cx.fillStyle="#fff"; cx.beginPath();cx.arc(xo,y,4,0,7);cx.fill();
+    cx.strokeStyle="#a78bfa";cx.lineWidth=2;cx.stroke();}
+}
+
+// ---------- lung animation ----------
+const lung=$("lung"), lx=lung.getContext("2d");
+const bars=$("bars"), bxc=bars.getContext("2d");
+let phase=0;
+function drawLung(m){
+  const dpr=window.devicePixelRatio||1, w=lung.clientWidth, h=260;
+  lung.width=w*dpr; lung.height=h*dpr; lx.setTransform(dpr,0,0,dpr,0,0);
+  lx.clearRect(0,0,w,h);
+  const T=trans(S.f,m);                 // normalised excursion (and Palv/Paw)
+  const osc=Math.sin(phase);
+  const cxp=w/2, cyp=h/2+10;
+  // trachea
+  lx.strokeStyle="#5b7299"; lx.lineWidth=14; lx.lineCap="round";
+  lx.beginPath();lx.moveTo(cxp,18);lx.lineTo(cxp,cyp-46);lx.stroke();
+  // bronchi
+  lx.lineWidth=9;
+  lx.beginPath();lx.moveTo(cxp,cyp-46);lx.lineTo(cxp-46,cyp-18);lx.stroke();
+  lx.beginPath();lx.moveTo(cxp,cyp-46);lx.lineTo(cxp+46,cyp-18);lx.stroke();
+  // alveoli clusters — radius modulated by excursion
+  const baseR=30, exc=T*osc*26;        // excursion in px
+  function alveolus(ox,oy,scale){
+    const r=baseR*scale + exc*scale;
+    const press=T*((osc+1)/2);          // 0..T pressure for colour
+    const g=lx.createRadialGradient(ox,oy,2,ox,oy,r);
+    const a=0.25+0.6*Math.min(press,1.2);
+    g.addColorStop(0,`rgba(167,139,250,${a})`);
+    g.addColorStop(1,`rgba(167,139,250,0.08)`);
+    lx.fillStyle=g; lx.strokeStyle="#a78bfa"; lx.lineWidth=2;
+    lx.beginPath();lx.arc(ox,oy,Math.max(6,r),0,7);lx.fill();lx.stroke();
+  }
+  alveolus(cxp-52,cyp+30,1.0);
+  alveolus(cxp+52,cyp+30,1.0);
+  alveolus(cxp-78,cyp+74,0.7);
+  alveolus(cxp+78,cyp+74,0.7);
+  alveolus(cxp,cyp+80,0.85);
+  // excursion readout
+  lx.fillStyle="#9bb0cd"; lx.font="12px sans-serif"; lx.textAlign="center";
+  lx.fillText(`relative V_T ≈ ${(T*100).toFixed(0)}%  of quasi-static`, cxp, h-8);
+}
+function drawBars(m){
+  const dpr=window.devicePixelRatio||1, w=bars.clientWidth, h=260;
+  bars.width=w*dpr; bars.height=h*dpr; bxc.setTransform(dpr,0,0,dpr,0,0);
+  bxc.clearRect(0,0,w,h);
+  const T=trans(S.f,m);
+  const baseY=h-40, maxH=h-80;
+  // scale so airway bar uses ~ 55% height, alveolar relative to it (cap at 1.6x)
+  const awH=maxH*0.6; const alvH=awH*Math.min(T,1.6);
+  const bw=70, gap=70, x1=w/2-gap/2-bw, x2=w/2+gap/2;
+  function bar(x,bh,col,lab,val){
+    bxc.fillStyle=col; bxc.fillRect(x,baseY-bh,bw,bh);
+    bxc.fillStyle="#e8eef7"; bxc.font="bold 13px sans-serif"; bxc.textAlign="center";
+    bxc.fillText(val,x+bw/2,baseY-bh-8);
+    bxc.fillStyle="#9bb0cd"; bxc.font="11px sans-serif"; bxc.fillText(lab,x+bw/2,baseY+18);
+  }
+  bar(x1,awH,"#34d399","ΔP airway", S.P.toFixed(0)+" cmH₂O");
+  bar(x2,alvH,(T>1.0?"#f87272":"#a78bfa"),"ΔP alveolus",(S.P*T).toFixed(1)+" cmH₂O");
+  bxc.strokeStyle="#2c4063"; bxc.beginPath();bxc.moveTo(20,baseY);bxc.lineTo(w-20,baseY);bxc.stroke();
+  if(T>1.0){ bxc.fillStyle="#f87272"; bxc.font="bold 12px sans-serif"; bxc.textAlign="center";
+    bxc.fillText("⚠ alveolar > airway — over-transmission", w/2, 22); }
+}
+
+// ---------- live equations ----------
+function eqRow(eq,val){ return `<div class="eqrow"><div class="eq">${eq}</div><div class="eqval">${val}</div></div>`; }
+function updateEqs(m){
+  const C=m.C, w=2*Math.PI*S.f, Xc=1/(w*m.C), Xi=w*m.I, X=Xi-Xc, Z=Zmag(S.f,m), T=trans(S.f,m);
+  $("eqs").innerHTML =
+    eqRow(`τ = R·C = ${m.R} × ${(C).toExponential(2)}`, `= <b>${(m.tau*1000).toFixed(1)} ms</b>`)+
+    eqRow(`f<span class="hl">c</span> = 1 / (2π·R·C) = 1 / (2π·${m.R}·${C.toExponential(2)})`, `= <b>${m.fc.toFixed(2)} Hz</b>`)+
+    eqRow(`f<span class="hl">0</span> = 1 / (2π·√(I·C)) = 1 / (2π·√(${m.I}·${C.toExponential(2)}))`, `= <b>${m.f0.toFixed(2)} Hz</b>`)+
+    eqRow(`at f = ${S.f.toFixed(1)} Hz:  inertive 2πfI = ${Xi.toFixed(2)},  elastic 1/(2πfC) = ${Xc.toFixed(2)}`, `net X = <b>${X.toFixed(2)}</b>`)+
+    eqRow(`|Z| = √(R² + X²) = √(${m.R}² + (${X.toFixed(2)})²)`, `= <b>${Z.toFixed(1)} cmH₂O·s/L</b>`)+
+    eqRow(`Q = √(I/C)/R = ${m.Zchar.toFixed(2)} / ${m.R}`, `= <b>${m.Q.toFixed(2)}</b> (${m.Q>=1?"under-damped":"over-damped"})`)+
+    eqRow(`P<sub>alv</sub>/P<sub>aw</sub> = (1/(2πfC)) / |Z| = ${Xc.toFixed(2)} / ${Z.toFixed(1)}`, `= <b>${T.toFixed(2)}×</b>`);
+}
+
+// ---------- teaching ----------
+function updateTeach(m){
+  const T=trans(S.f,m);
+  const rel = S.f<m.fc ? "below" : (S.f>m.f0 ? "above" : "between");
+  let zoneTxt, where;
+  if(S.f < m.fc){ where=`You are <b>below f꜀ (${m.fc.toFixed(1)} Hz)</b>, on the steep elastic limb.`;
+    zoneTxt=`Impedance is dominated by 1/(2πfC); large pressure is needed for each unit of flow and most of it is transmitted to the alveoli (large V<sub>T</sub>, high alveolar pressure swing).`; }
+  else if(S.f <= m.f0){ where=`You are <b>between f꜀ (${m.fc.toFixed(1)}) and f₀ (${m.f0.toFixed(1)} Hz)</b> — the efficient operating window.`;
+    zoneTxt=`Near the corner frequency the curve flattens: this gives close to the <b>minimum pressure cost per unit oscillatory flow</b>, which is why the lung's f꜀ is a sensible target.`; }
+  else { where=`You are <b>above f₀ (${m.f0.toFixed(1)} Hz)</b>, on the inertive limb.`;
+    zoneTxt=`Inertance (2πfI) now dominates: impedance climbs again, alveolar transmission and V<sub>T</sub> fall sharply — the lung is increasingly "shielded", but more proximal pressure is spent moving gas back and forth.`; }
+  $("teach").innerHTML = `
+   <p>${where} ${zoneTxt}</p>
+   <ul>
+     <li><b>Corner frequency f꜀ = 1/(2πRC) = ${m.fc.toFixed(1)} Hz.</b> The knee where energy starts being lost rather than passed through. As the time constant τ shortens (↓C as in RDS, or ↓R), f꜀ <b>rises</b>; long-τ lungs (↑R, e.g. BPD/MAS) push f꜀ <b>down</b>. Current τ = ${(m.tau*1000).toFixed(1)} ms.</li>
+     <li><b>Resonant frequency f₀ = 1/(2π√(IC)) = ${m.f0.toFixed(1)} Hz.</b> Elastic and inertive reactance cancel, so |Z| = R (its minimum) and oscillatory flow is delivered most efficiently. Lower compliance → higher f₀, which is why stiff parenchymal disease (HMD) tolerates higher frequencies.</li>
+     <li><b>Damping Q = √(I/C)/R = ${m.Q.toFixed(2)}.</b> Real neonatal lungs are usually <b>over-damped</b> (Q &lt; 1), so f꜀ sits below f₀ and there is no dangerous resonant pressure peak — alveolar pressure stays below airway pressure. Drop R enough (the "Resonance demo" preset) and Q &gt; 1: the alveolar swing then meets or exceeds the airway swing near f₀.</li>
+     <li><b>Right now P<sub>alv</sub> ≈ ${(T*100).toFixed(0)}% of ΔP<sub>aw</sub></b> (${(S.P*T).toFixed(1)} of ${S.P.toFixed(0)} cmH₂O). To keep both the pressure cost <i>and</i> the alveolar pressure transmission low, oscillating near <b>f꜀</b> — not at the impedance minimum f₀ — is the practical compromise.</li>
+   </ul>`;
+  // zone card
+  const zc=$("cZone"), zs=$("cZoneS");
+  if(S.f<m.fc){ zc.className="risk mod"; zc.textContent="Elastic limb"; zs.textContent="below f꜀ — high V_T / pressure cost"; }
+  else if(S.f<=m.f0){ zc.className="risk low"; zc.textContent="Efficient window"; zs.textContent="f꜀–f₀ — low pressure cost"; }
+  else { zc.className="risk mod"; zc.textContent="Inertive limb"; zs.textContent="above f₀ — V_T falling, cost rising"; }
+  if(T>1.0){ zc.className="risk high"; zc.textContent="Over-transmission"; zs.textContent="P_alv > P_aw (under-damped)"; }
+}
+
+// ---------- master render ----------
+function render(){
+  const m=calc();
+  // readouts
+  $("vC").textContent=S.C.toFixed(1); $("vR").textContent=S.R.toFixed(0);
+  $("vI").textContent=S.I.toFixed(3); $("vf").textContent=S.f.toFixed(1); $("vP").textContent=S.P.toFixed(0);
+  $("cTau").textContent=(m.tau*1000).toFixed(1);
+  $("cFc").textContent=m.fc.toFixed(1); $("cF0").textContent=m.f0.toFixed(1);
+  $("cZ").textContent=Zmag(S.f,m).toFixed(1); $("cQ").textContent=m.Q.toFixed(2);
+  $("cQs").textContent=m.Q>=1?"under-damped":"over-damped";
+  $("cT").textContent=trans(S.f,m).toFixed(2)+"×";
+  $("cEx").textContent=(trans(S.f,m)*100).toFixed(0)+"%";
+  // f hint
+  $("fHint").innerHTML = `f꜀ = ${m.fc.toFixed(1)} Hz · f₀ = ${m.f0.toFixed(1)} Hz`;
+  drawChart(m); updateEqs(m); updateTeach(m);
+  if(!$("tAnim").checked){ drawLung(m); drawBars(m); }
+}
+// animation loop
+function loop(){
+  const m=calc();
+  if($("tAnim").checked){ phase+=0.08; drawLung(m); drawBars(m); }
+  requestAnimationFrame(loop);
+}
+window.addEventListener("resize",render);
+const START=1; // default to RDS / HMD — the clinically relevant HFV scenario
+setActive(START); S.C=PRESETS[START].C;S.R=PRESETS[START].R;S.I=PRESETS[START].I;S.f=PRESETS[START].f;S.P=PRESETS[START].P;
+syncInputs(); render(); loop();
+</script>
+</body>
+</html>

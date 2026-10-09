@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How HFOV is Generated — Piston & Diaphragm Oscillators</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:linear-gradient(160deg,#0b1622,#0e1b2a 40%,#0c1a2b);
+    color:#e8f0f8; font-family:"Segoe UI",system-ui,Arial,sans-serif; line-height:1.5;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:24px 20px 60px;}
+  h1{font-size:1.55rem; margin:0 0 4px; font-weight:650;}
+  .sub{color:#9fb3c8; font-size:.95rem; margin-bottom:18px;}
+  .modebar{display:flex; gap:10px; margin-bottom:14px;}
+  .modebar button{
+    background:#13263b; border:1px solid #2f5274; color:#cdd9e6; padding:10px 18px;
+    border-radius:10px; font-size:.95rem; cursor:pointer; font-weight:600; transition:.15s;
+  }
+  .modebar button:hover{border-color:#3aa0ff;}
+  .modebar button.active{background:#1d3a5c; border-color:#3aa0ff; color:#fff; box-shadow:0 0 0 1px #3aa0ff inset;}
+  .stage{
+    background:#0c1827; border:1px solid #24405d; border-radius:14px;
+    padding:14px; position:relative; box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  svg{display:block; width:100%; height:auto;}
+  .grid{display:grid; grid-template-columns:1fr 320px; gap:18px; margin-top:18px;}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:#13263b; border:1px solid #24405d; border-radius:12px; padding:16px;}
+  .card h2{font-size:1rem; margin:0 0 12px; color:#3aa0ff; font-weight:600; letter-spacing:.2px;}
+  .ctrl{margin-bottom:15px;}
+  .ctrl label{display:flex; justify-content:space-between; font-size:.88rem; color:#cdd9e6; margin-bottom:6px;}
+  .ctrl label b{color:#37d6a8; font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%; accent-color:#3aa0ff; cursor:pointer;}
+  .btnrow{display:flex; gap:8px; margin-top:6px;}
+  button{
+    flex:1; background:#1f3a57; border:1px solid #2f5274; color:#e8f0f8;
+    padding:9px 10px; border-radius:8px; font-size:.88rem; cursor:pointer; transition:.15s;
+  }
+  button:hover{background:#274a6e; border-color:#3aa0ff;}
+  button.active{background:#1d5a48; border-color:#37d6a8; color:#d6fff1;}
+  .readout{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px;}
+  .pill{background:#0e2032; border:1px solid #24405d; border-radius:8px; padding:8px 10px;}
+  .pill .k{font-size:.7rem; color:#9fb3c8; text-transform:uppercase; letter-spacing:.5px;}
+  .pill .v{font-size:1.02rem; font-weight:650; color:#fff; font-variant-numeric:tabular-nums;}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:.82rem; color:#bcccdc;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:11px; height:11px; border-radius:3px; display:inline-block;}
+  details{margin-top:16px; background:#13263b; border:1px solid #24405d; border-radius:12px; padding:4px 16px;}
+  summary{cursor:pointer; padding:12px 0; font-weight:600; color:#3aa0ff;}
+  details p, details li{color:#cdd9e6; font-size:.92rem;}
+  code{background:#0e2032; padding:1px 6px; border-radius:5px; color:#37d6a8; font-size:.9em;}
+  .formula{background:#0e2032; border-left:3px solid #3aa0ff; padding:10px 14px; border-radius:6px; margin:10px 0; font-family:Consolas,monospace; font-size:.9rem; color:#dfeaf5;}
+  .tag{position:absolute; top:14px; right:16px; font-size:.72rem; color:#6f8aa6; letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>How High-Frequency Oscillation Is Generated</h1>
+  <div class="sub">An oscillating pressure is superimposed on a constant <b>mean airway pressure (MAP)</b>. The oscillation can be driven by a <b>piston</b> or by an <b>electromagnetic diaphragm</b>. Continuous bias (fresh gas) flow meets a <b>low-pass filter / expiratory resistance</b> — and it is that resistance that <b>builds the MAP</b>.</div>
+
+  <div class="modebar">
+    <button id="mPiston" class="active">Piston oscillator</button>
+    <button id="mDia">Electromagnetic diaphragm</button>
+  </div>
+
+  <div class="stage">
+    <span class="tag" id="tag">Piston HFOV — animated</span>
+    <svg id="scene" viewBox="0 0 920 380" preserveAspectRatio="xMidYMid meet">
+
+      <!-- ===================== PISTON GENERATOR ===================== -->
+      <g id="genPiston">
+        <rect x="40" y="300" width="280" height="14" rx="3" fill="#26456a"/>
+        <rect x="150" y="252" width="22" height="50" fill="#1c3a57"/>
+        <g transform="translate(110,212)">
+          <circle r="46" fill="#16314d" stroke="#3aa0ff" stroke-width="3"/>
+          <circle r="46" fill="none" stroke="#2a557d" stroke-width="1" stroke-dasharray="3 5"/>
+          <g id="wheelSpin">
+            <line x1="0" y1="0" x2="0" y2="-46" stroke="#37d6a8" stroke-width="3"/>
+            <line x1="0" y1="0" x2="40" y2="23" stroke="#2a557d" stroke-width="2"/>
+            <line x1="0" y1="0" x2="-40" y2="23" stroke="#2a557d" stroke-width="2"/>
+            <circle cx="0" cy="-32" r="7" fill="#ff8c5a" stroke="#fff" stroke-width="1.5"/>
+          </g>
+          <circle r="6" fill="#cfd8e3"/>
+          <text x="0" y="74" text-anchor="middle" fill="#9fb3c8" font-size="13">Oscillator motor</text>
+        </g>
+        <line id="conrod" x1="110" y1="180" x2="300" y2="212" stroke="#8aa0b8" stroke-width="6" stroke-linecap="round"/>
+        <rect x="300" y="188" width="150" height="48" rx="6" fill="#10243a" stroke="#3aa0ff" stroke-width="2"/>
+        <rect id="piston" x="330" y="192" width="20" height="40" rx="3" fill="#cfd8e3" stroke="#8aa0b8" stroke-width="1.5"/>
+        <line id="pistonRod" x1="300" y1="212" x2="330" y2="212" stroke="#8aa0b8" stroke-width="5"/>
+        <g transform="translate(375,172)">
+          <line x1="-18" y1="0" x2="18" y2="0" stroke="#37d6a8" stroke-width="2"/>
+          <path d="M-18 0 l8 -5 v10 z" fill="#37d6a8"/><path d="M18 0 l-8 -5 v10 z" fill="#37d6a8"/>
+        </g>
+        <text x="375" y="254" text-anchor="middle" fill="#9fb3c8" font-size="13">Piston to-and-fro</text>
+      </g>
+
+      <!-- ===================== DIAPHRAGM GENERATOR ===================== -->
+      <g id="genDia" style="display:none">
+        <rect x="40" y="300" width="280" height="14" rx="3" fill="#26456a"/>
+        <!-- electromagnet pole housing -->
+        <rect x="70" y="170" width="150" height="84" rx="8" fill="#10243a" stroke="#3aa0ff" stroke-width="2"/>
+        <!-- coil windings -->
+        <g id="coil" stroke="#c08a3a" stroke-width="5" fill="none">
+          <path d="M95 180 q12 -8 24 0 q12 8 24 0 q12 -8 24 0"/>
+          <path d="M95 196 q12 -8 24 0 q12 8 24 0 q12 -8 24 0"/>
+          <path d="M95 212 q12 -8 24 0 q12 8 24 0 q12 -8 24 0"/>
+          <path d="M95 228 q12 -8 24 0 q12 8 24 0 q12 -8 24 0"/>
+        </g>
+        <!-- alternating current symbol -->
+        <g transform="translate(110,150)">
+          <circle r="14" fill="#0e2032" stroke="#ff8c5a" stroke-width="2"/>
+          <path id="acWave" d="M-8 0 q4 -8 8 0 q4 8 8 0" fill="none" stroke="#ff8c5a" stroke-width="2"/>
+          <text x="0" y="-22" text-anchor="middle" fill="#ff8c5a" font-size="11">AC drive</text>
+        </g>
+        <!-- voice-coil former -->
+        <rect id="diaFormer" x="218" y="200" width="38" height="24" rx="3" fill="#8aa0b8"/>
+        <!-- flexible diaphragm membrane (animated) -->
+        <path id="diaMembrane" d="M256 176 Q280 212 256 248" fill="none" stroke="#cfd8e3" stroke-width="6" stroke-linecap="round"/>
+        <!-- polarity / motion arrow -->
+        <g transform="translate(290,158)">
+          <line x1="-18" y1="0" x2="18" y2="0" stroke="#37d6a8" stroke-width="2"/>
+          <path d="M-18 0 l8 -5 v10 z" fill="#37d6a8"/><path d="M18 0 l-8 -5 v10 z" fill="#37d6a8"/>
+        </g>
+        <text x="150" y="278" text-anchor="middle" fill="#9fb3c8" font-size="13">Electromagnet</text>
+        <text x="278" y="278" text-anchor="middle" fill="#9fb3c8" font-size="13">Oscillating diaphragm</text>
+      </g>
+
+      <!-- ===================== SHARED CIRCUIT ===================== -->
+      <!-- duct from generator to T-piece -->
+      <rect x="450" y="204" width="180" height="16" fill="#2f4a6a"/>
+      <text x="540" y="197" text-anchor="middle" fill="#cdd9e6" font-size="12">oscillating airway pressure</text>
+
+      <!-- Bias flow (FGF) inlet, thickness scales with flow -->
+      <g>
+        <line id="fgfLine" x1="560" y1="332" x2="560" y2="220" stroke="#37d6a8" stroke-width="6"/>
+        <path id="fgfArrow" d="M553 256 h14 l-7 -12 z" fill="#37d6a8"/>
+        <text x="560" y="352" text-anchor="middle" fill="#37d6a8" font-size="13">Bias flow (FGF) →</text>
+      </g>
+
+      <!-- Low-pass filter / expiratory limb with adjustable RESISTANCE valve -->
+      <g transform="translate(560,70)">
+        <path d="M0 132 C0 90 60 90 60 120 C60 142 30 142 30 122 C30 108 48 108 48 120"
+              fill="none" stroke="#8aa0b8" stroke-width="6"/>
+        <text x="30" y="20" text-anchor="middle" fill="#9fb3c8" font-size="13">Low-pass filter</text>
+        <text x="30" y="36" text-anchor="middle" fill="#6f8aa6" font-size="11">(expiratory limb)</text>
+        <!-- adjustable resistance valve: a plate that narrows the outlet -->
+        <g transform="translate(60,108)">
+          <line x1="0" y1="-14" x2="0" y2="14" stroke="#3aa0ff" stroke-width="2"/>
+          <rect id="valvePlate" x="-4" y="-14" width="8" height="6" fill="#ff8c5a"/>
+          <text x="22" y="-2" fill="#ff8c5a" font-size="11">resistance</text>
+          <text x="22" y="12" fill="#6f8aa6" font-size="10">valve</text>
+        </g>
+        <!-- exit puffs -->
+        <circle id="puff1" cx="74" cy="96" r="3" fill="#5fb0e8" opacity="0"/>
+        <circle id="puff2" cx="80" cy="92" r="2.4" fill="#5fb0e8" opacity="0"/>
+      </g>
+
+      <!-- Back-pressure gauge = the MAP that the resistance builds -->
+      <g transform="translate(672,250)">
+        <circle r="34" fill="#0e2032" stroke="#3aa0ff" stroke-width="2"/>
+        <text x="0" y="-40" text-anchor="middle" fill="#cdd9e6" font-size="11">MAP gauge</text>
+        <!-- ticks -->
+        <line x1="0" y1="-26" x2="0" y2="-20" stroke="#6f8aa6" stroke-width="1.5"/>
+        <line x1="-23" y1="0" x2="-17" y2="0" stroke="#6f8aa6" stroke-width="1.5"/>
+        <line x1="23" y1="0" x2="17" y2="0" stroke="#6f8aa6" stroke-width="1.5"/>
+        <line id="needle" x1="0" y1="0" x2="0" y2="-24" stroke="#ff8c5a" stroke-width="2.5"/>
+        <circle r="3.5" fill="#cfd8e3"/>
+        <text id="gaugeVal" x="0" y="22" text-anchor="middle" fill="#37d6a8" font-size="12" font-weight="700">12</text>
+      </g>
+
+      <!-- T junction to ET tube -->
+      <rect x="630" y="198" width="18" height="58" fill="#2f4a6a"/>
+      <rect x="630" y="204" width="120" height="16" fill="#2f4a6a"/>
+
+      <!-- ET tube (UNCUFFED) + airway -->
+      <g>
+        <path d="M750 198 q40 0 60 22 l30 18" fill="none" stroke="#3aa0ff" stroke-width="14" stroke-linecap="round" opacity=".55"/>
+        <text x="820" y="280" text-anchor="middle" fill="#9fb3c8" font-size="13">Uncuffed ET tube</text>
+        <circle id="airGas" cx="700" cy="212" r="6" fill="#ff8c5a"/>
+      </g>
+    </svg>
+
+    <div class="legend">
+      <span><i class="dot" style="background:#3aa0ff"></i>Rigid circuit</span>
+      <span><i class="dot" style="background:#cfd8e3"></i>Piston / diaphragm</span>
+      <span><i class="dot" style="background:#c08a3a"></i>Electromagnet coil</span>
+      <span><i class="dot" style="background:#37d6a8"></i>Bias flow (FGF)</span>
+      <span><i class="dot" style="background:#ff8c5a"></i>Resistance / back-pressure (MAP)</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- waveform -->
+    <div class="card">
+      <h2>Airway pressure waveform (Paw)</h2>
+      <svg id="wave" viewBox="0 0 560 220" preserveAspectRatio="xMidYMid meet" style="background:#0c1827;border-radius:8px;">
+        <defs>
+          <marker id="arO" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 z" fill="#ff8c5a"/></marker>
+          <marker id="arC" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9 z" fill="#5fb0e8"/></marker>
+        </defs>
+        <line id="baseGrid" x1="40" y1="110" x2="545" y2="110" stroke="#2a4a6a" stroke-width="1" stroke-dasharray="4 4"/>
+        <line x1="40" y1="20" x2="40" y2="200" stroke="#2a4a6a" stroke-width="1.5"/>
+        <line x1="40" y1="200" x2="545" y2="200" stroke="#2a4a6a" stroke-width="1.5"/>
+        <text x="44" y="32" fill="#9fb3c8" font-size="11">cmH₂O</text>
+        <text id="mapTxt" x="46" y="106" fill="#ff8c5a" font-size="10">MAP</text>
+        <path id="wavePath" fill="none" stroke="#3aa0ff" stroke-width="2.5"/>
+        <line id="mapLine" x1="40" y1="110" x2="545" y2="110" stroke="#ff8c5a" stroke-width="1.5" stroke-dasharray="6 4" opacity=".85"/>
+        <!-- A (peak above MAP) and B (trough below MAP) magnitude arrows, mirroring Dräger Fig 5-2 -->
+        <line id="arrA" x1="70" y1="110" x2="70" y2="78"  stroke="#ff8c5a" stroke-width="2" marker-start="url(#arO)" marker-end="url(#arO)"/>
+        <text id="lblA" x="76" y="96"  fill="#ff8c5a" font-size="12" font-weight="700">A</text>
+        <line id="arrB" x1="96" y1="110" x2="96" y2="142" stroke="#5fb0e8" stroke-width="2" marker-start="url(#arC)" marker-end="url(#arC)"/>
+        <text id="lblB" x="102" y="128" fill="#5fb0e8" font-size="12" font-weight="700">B</text>
+        <circle id="waveDot" r="4" fill="#37d6a8"/>
+      </svg>
+      <div class="readout">
+        <div class="pill"><div class="k">Mean Paw (MAP)</div><div class="v" id="rMAP">12 cmH₂O</div></div>
+        <div class="pill"><div class="k">Amplitude (ΔP)</div><div class="v" id="rDP">40 cmH₂O</div></div>
+        <div class="pill"><div class="k">Frequency</div><div class="v" id="rHz">10 Hz</div></div>
+        <div class="pill"><div class="k">I:E ratio</div><div class="v" id="rIE">1:1</div></div>
+        <div class="pill"><div class="k">Peak above MAP (A)</div><div class="v" id="rA" style="color:#ff8c5a">+20</div></div>
+        <div class="pill"><div class="k">Trough below MAP (B)</div><div class="v" id="rB" style="color:#5fb0e8">−20</div></div>
+      </div>
+    </div>
+
+    <!-- controls -->
+    <div class="card">
+      <h2>Controls</h2>
+      <div class="ctrl">
+        <label>Frequency <b><span id="vHz">10</span> Hz (<span id="vBpm">600</span>/min)</b></label>
+        <input type="range" id="sHz" min="5" max="15" step="1" value="10">
+      </div>
+      <div class="ctrl">
+        <label>Amplitude / Power (ΔP, peak-to-trough) <b><span id="vDP">40</span> cmH₂O</b></label>
+        <input type="range" id="sDP" min="10" max="90" step="2" value="40">
+      </div>
+      <div class="ctrl">
+        <label>I:E ratio <b>1:<span id="vIE">1</span></b></label>
+        <input type="range" id="sIE" min="1" max="3" step="0.5" value="1">
+      </div>
+      <div style="font-size:.78rem;color:#9fb3c8;margin:-6px 0 12px;">peak above MAP <b id="vA" style="color:#ff8c5a">20</b> · trough below <b id="vB" style="color:#5fb0e8">20</b> cmH₂O&nbsp; (B/A = 1:<span id="vBA">1</span>)</div>
+      <div class="ctrl" style="border-top:1px solid #24405d;padding-top:12px;">
+        <label>Bias flow / FGF <b><span id="vFGF">15</span> L/min</b></label>
+        <input type="range" id="sFGF" min="5" max="25" step="1" value="15">
+      </div>
+      <div class="ctrl">
+        <label>Filter resistance (valve) <b><span id="vR">0.8</span> units</b></label>
+        <input type="range" id="sR" min="0.2" max="1.6" step="0.1" value="0.8">
+      </div>
+      <div style="font-size:.78rem;color:#9fb3c8;margin:-6px 0 12px;">→ MAP = FGF × resistance = <b id="vMAPcalc" style="color:#ff8c5a">12</b> cmH₂O</div>
+      <div class="ctrl">
+        <label>Animation speed <b><span id="vSpd">1.0</span>×</b></label>
+        <input type="range" id="sSpd" min="0.1" max="2" step="0.1" value="1">
+      </div>
+      <div class="btnrow">
+        <button id="btnPlay" class="active">⏸ Pause</button>
+        <button id="btnReset">Reset</button>
+      </div>
+      <div class="btnrow">
+        <button id="btnSlow">Slow-mo</button>
+        <button id="btnTrace">Hide trace</button>
+      </div>
+    </div>
+  </div>
+
+  <details open>
+    <summary>How MAP is generated — bias flow against resistance</summary>
+    <p>Fresh gas flows continuously into the circuit. The only way out is through the <b>low-pass filter / expiratory limb</b>, which carries an adjustable <b>resistance valve</b>. Flowing gas meeting a resistance builds a steady <b>back-pressure</b> — exactly the pressure version of Ohm's law. That back-pressure <b>is</b> the mean airway pressure that the oscillations ride on. Tighten the valve (more resistance) or raise the bias flow and the gauge needle climbs; open the valve and MAP falls.</p>
+    <div class="formula">MAP ≈ Bias flow (FGF) × Expiratory resistance     (pressure = flow × resistance)</div>
+    <p>The filter is "low-pass" because it lets the slow, steady bias flow leak out to set MAP, while the fast high-frequency oscillation is too quick to escape and stays in the patient circuit.</p>
+  </details>
+
+  <details>
+    <summary>Two ways to drive the oscillation — piston vs electromagnetic diaphragm</summary>
+    <p><b>Piston oscillator:</b> a motor spins a wheel; a crank pin turns rotation into linear <b>to-and-fro</b> piston travel, push–pulling the gas column. Stroke length sets ΔP.</p>
+    <p><b>Electromagnetic diaphragm:</b> works like a loudspeaker. An alternating current in a coil sits in a magnetic field; the resulting force drives a <b>voice-coil and flexible diaphragm</b> in and out. The membrane's excursion sets ΔP and the AC frequency sets the oscillation rate. This is the principle of the SensorMedics 3100A/B. In both designs the defining feature is the same: <b>expiration is active</b> — the device pulls pressure below MAP, it does not rely on passive recoil.</p>
+    <div class="formula">piston/diaphragm displacement: x(t) = A · sin(2π f · t)</div>
+    <div class="formula">airway pressure: Paw(t) = MAP + (ΔP/2) · sin(2π f · t)</div>
+    <p>Switch the mode at the top and the rest of the circuit — bias flow, resistance, MAP, waveform — stays identical, showing the generator is interchangeable.</p>
+  </details>
+
+  <details>
+    <summary>I:E ratio and waveform symmetry</summary>
+    <p>The I:E ratio sets how the cycle time is split between the inspiratory (upward) and expiratory (downward) halves of the oscillation. At <b>I:E 1:1</b> the two halves are equal, so the peak above MAP equals the trough below it (<b>A = B</b>). At <b>I:E 1:2</b>, expiration takes twice as long, so the trough is only about half as deep as the peak is high (<b>B ≈ A/2</b>) — exactly the asymmetry in Dräger's Figure 5-2.</p>
+    <div class="formula">trough/peak:  B / A = Tᵢ / Tₑ = 1 / E       (so 1:1 → A=B,  1:2 → B = ½A)</div>
+    <p>Crucially the <b>mean stays at MAP</b> at every ratio: the shorter, taller inspiratory area equals the longer, shallower expiratory area. A practical consequence is that a <b>larger inspiratory ΔP is needed at 1:2</b> to deliver the same tidal volume as 1:1, since less time is spent moving gas inward. Move the slider and watch the orange (A) and blue (B) arrows change while the MAP line holds steady.</p>
+  </details>
+
+  <details>
+    <summary>Clinical control map</summary>
+    <ul>
+      <li><b>ΔP (amplitude/power):</b> main control of <b>CO₂ removal</b>. ↑ΔP → ↑tidal volume → ↓PaCO₂ (visible chest wiggle).</li>
+      <li><b>Frequency:</b> 1 Hz = 60/min. On HFOV, <b>↑frequency usually ↑PaCO₂</b> (less volume per stroke).</li>
+      <li><b>MAP (bias flow × resistance):</b> main control of <b>oxygenation</b>; recruits and holds lung volume.</li>
+      <li><b>Bias flow:</b> washes CO₂ out through the filter and supplies fresh gas; also contributes to MAP.</li>
+    </ul>
+  </details>
+
+  <div class="sub" style="margin-top:18px;font-size:.8rem;color:#6f8aa6;">Teaching tool for NICU residents/fellows. Piston schematic after Thompson, Marchak, Froese &amp; Bryan (J Appl Physiol 1982); diaphragm principle after the SensorMedics 3100. Numbers are illustrative, not device-specific.</div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let mode="piston";
+  let f=10, dP=40, E=1, fgf=15, R=0.8, spd=1, playing=true, showTrace=true, t=0, last=null;
+
+  const wheel=$("wheelSpin"), conrod=$("conrod"), piston=$("piston"), pistonRod=$("pistonRod"),
+        airGas=$("airGas"), puff1=$("puff1"), puff2=$("puff2"), fgfArrow=$("fgfArrow"), fgfLine=$("fgfLine"),
+        diaMembrane=$("diaMembrane"), diaFormer=$("diaFormer"), acWave=$("acWave"), coil=$("coil"),
+        valvePlate=$("valvePlate"), needle=$("needle"), gaugeVal=$("gaugeVal"),
+        wavePath=$("wavePath"), waveDot=$("waveDot"), mapLine=$("mapLine"), mapTxt=$("mapTxt"),
+        arrA=$("arrA"), arrB=$("arrB"), lblA=$("lblA"), lblB=$("lblB");
+
+  const WCX=110, WCY=212, R_CRANK=32, PIST_MID=330, STROKE=22;
+
+  function MAP(){ return Math.max(2, Math.min(40, fgf*R)); }
+  function Afrac(){ return E/(1+E); }   // peak above MAP, as fraction of ΔP
+  function Bfrac(){ return 1/(1+E); }   // trough below MAP, as fraction of ΔP
+
+  // shared asymmetric displacement: u in [0,1). Inspiration occupies 1/(1+E), expiration E/(1+E).
+  // Returns signed value in [-Bfrac, +Afrac]; peak-to-trough span = 1. Areas above/below balance → mean preserved.
+  function disp(u){
+    u = ((u % 1) + 1) % 1;
+    const fi = 1/(1+E);
+    if(u < fi) return  Afrac()*Math.sin(Math.PI*u/fi);
+    return            -Bfrac()*Math.sin(Math.PI*(u-fi)/(1-fi));
+  }
+
+  function syncReadouts(){
+    const map=MAP();
+    const A=dP*Afrac(), B=dP*Bfrac();
+    $("vHz").textContent=f; $("vBpm").textContent=f*60;
+    $("vDP").textContent=dP; $("vFGF").textContent=fgf; $("vR").textContent=R.toFixed(1);
+    $("vSpd").textContent=spd.toFixed(1);
+    $("vIE").textContent=(E % 1 === 0)? E.toFixed(0):E.toFixed(1);
+    $("vA").textContent=A.toFixed(0); $("vB").textContent=B.toFixed(0);
+    $("vBA").textContent=E.toFixed(E % 1 === 0?0:1);
+    $("vMAPcalc").textContent=map.toFixed(0);
+    $("rMAP").textContent=map.toFixed(0)+" cmH₂O";
+    $("rDP").textContent=dP+" cmH₂O";
+    $("rHz").textContent=f+" Hz";
+    $("rIE").textContent="1:"+(E % 1 === 0? E.toFixed(0):E.toFixed(1));
+    $("rA").textContent="+"+A.toFixed(0);
+    $("rB").textContent="−"+B.toFixed(0);
+    // A/B magnitude arrows on the waveform (peak above / trough below MAP)
+    arrA.setAttribute("y2", (yMid - A*pxPerCm).toFixed(1));
+    arrB.setAttribute("y2", (yMid + B*pxPerCm).toFixed(1));
+    lblA.setAttribute("y", (yMid - A*pxPerCm/2 + 4).toFixed(1));
+    lblB.setAttribute("y", (yMid + B*pxPerCm/2 + 4).toFixed(1));
+    // valve plate width: more resistance = narrower opening = wider plate
+    valvePlate.setAttribute("width", (4+R*8).toFixed(1));
+    valvePlate.setAttribute("x", (-(4+R*8)/2).toFixed(1));
+    // fgf line thickness
+    fgfLine.setAttribute("stroke-width",(3+fgf*0.25).toFixed(1));
+    // gauge needle: map 2..40 -> -90deg..+90deg
+    const ang=(-90 + (map-2)/(40-2)*180);
+    needle.setAttribute("transform","rotate("+ang+")");
+    gaugeVal.textContent=map.toFixed(0);
+  }
+
+  const yMid=110, pxPerCm=1.3;
+  function pToY(p,map){ return yMid - (p-map)*pxPerCm; }
+
+  function drawWave(){
+    const map=MAP(), W=505, x0=40, cycles=3;
+    let d="";
+    for(let i=0;i<=W;i++){
+      const u = (i/W)*cycles - t;          // cycle position (scrolls with t)
+      const p = map + dP*disp(u);
+      d += (i===0?"M":"L")+(x0+i).toFixed(1)+" "+pToY(p,map).toFixed(1)+" ";
+    }
+    wavePath.setAttribute("d",d);
+    wavePath.style.display = showTrace? "block":"none";
+    const pNow = map + dP*disp(-t);
+    waveDot.setAttribute("cx",x0); waveDot.setAttribute("cy",pToY(pNow,map));
+  }
+
+  function frame(ts){
+    if(last==null) last=ts;
+    const dt=(ts-last)/1000; last=ts;
+    if(playing){ t += dt*(f*0.12*spd); }
+    const ang=t*2*Math.PI;
+    const s = disp(-t);               // signed displacement, in phase with the waveform dot
+    const move = 2*STROKE*(dP/90)*s;  // px; at I:E 1:1 this matches a symmetric stroke
+
+    if(mode==="piston"){
+      wheel.setAttribute("transform","rotate("+(ang*180/Math.PI)+")");
+      const pinX=WCX+R_CRANK*Math.cos(ang-Math.PI/2);
+      const pinY=WCY+R_CRANK*Math.sin(ang-Math.PI/2);
+      const px=PIST_MID+move;
+      piston.setAttribute("x",px); pistonRod.setAttribute("x2",px);
+      conrod.setAttribute("x1",pinX); conrod.setAttribute("y1",pinY);
+      conrod.setAttribute("x2",px); conrod.setAttribute("y2",212);
+    } else {
+      // diaphragm follows the command waveform (voice coil tracks it electronically)
+      const bulge=2*24*(dP/90)*s;     // +right(insp) / -left(exp)
+      const cx=280+bulge;
+      diaMembrane.setAttribute("d","M256 176 Q"+cx.toFixed(1)+" 212 256 248");
+      diaFormer.setAttribute("x",(218+bulge*0.5).toFixed(1));
+      acWave.setAttribute("stroke", s>0? "#ff8c5a":"#5fb0e8");
+      coil.setAttribute("stroke", s>0? "#c08a3a":"#7fa8d8");
+    }
+
+    // shared gas column pulsing, follows the same displacement
+    airGas.setAttribute("r",6+(s/0.5)*3);
+    airGas.setAttribute("fill", s>0? "#ff8c5a":"#5fb0e8");
+
+    // bias flow puffs out filter, rate scales with fgf
+    const pp=(t*(1+fgf/15))%1;
+    puff1.setAttribute("opacity",0.7*(1-pp)); puff1.setAttribute("cy",(96-pp*34).toFixed(1));
+    puff2.setAttribute("opacity",0.5*(1-pp)); puff2.setAttribute("cy",(92-pp*30).toFixed(1));
+    fgfArrow.setAttribute("opacity",0.5+0.5*Math.abs(Math.sin(ts/300)));
+
+    drawWave();
+    requestAnimationFrame(frame);
+  }
+
+  function setMode(m){
+    mode=m;
+    $("genPiston").style.display = m==="piston"?"block":"none";
+    $("genDia").style.display    = m==="diaphragm"?"block":"none";
+    $("mPiston").classList.toggle("active",m==="piston");
+    $("mDia").classList.toggle("active",m==="diaphragm");
+    $("tag").textContent = m==="piston"? "Piston HFOV — animated":"Electromagnetic diaphragm HFOV — animated";
+  }
+
+  // events
+  $("sHz").oninput=e=>{f=+e.target.value;syncReadouts();};
+  $("sDP").oninput=e=>{dP=+e.target.value;syncReadouts();};
+  $("sIE").oninput=e=>{E=+e.target.value;syncReadouts();};
+  $("sFGF").oninput=e=>{fgf=+e.target.value;syncReadouts();};
+  $("sR").oninput=e=>{R=+e.target.value;syncReadouts();};
+  $("sSpd").oninput=e=>{spd=+e.target.value;syncReadouts();};
+  $("mPiston").onclick=()=>setMode("piston");
+  $("mDia").onclick=()=>setMode("diaphragm");
+  $("btnPlay").onclick=function(){playing=!playing;this.classList.toggle("active",playing);this.textContent=playing?"⏸ Pause":"▶ Play";last=null;};
+  $("btnReset").onclick=()=>{f=10;dP=40;E=1;fgf=15;R=0.8;spd=1;t=0;
+    $("sHz").value=10;$("sDP").value=40;$("sIE").value=1;$("sFGF").value=15;$("sR").value=0.8;$("sSpd").value=1;syncReadouts();};
+  $("btnSlow").onclick=function(){spd=spd>0.3?0.2:1;$("sSpd").value=spd;syncReadouts();};
+  $("btnTrace").onclick=function(){showTrace=!showTrace;this.textContent=showTrace?"Hide trace":"Show trace";};
+
+  setMode("piston"); syncReadouts(); requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

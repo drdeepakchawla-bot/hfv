@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HFV Lung Mechanics & Pressure Transmission Simulator</title>
+<style>
+  :root{
+    --bg:#0e1726; --panel:#16233b; --panel2:#1d2f4d; --ink:#e8eef7; --muted:#9bb0cd;
+    --line:#2c4063; --accent:#37c2ff; --good:#36d399; --warn:#fbbd23; --bad:#f87272;
+    --alv:#a78bfa; --carina:#34d399; --ao:#37c2ff; --grid:#22344f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45}
+  header{padding:16px 22px;background:linear-gradient(120deg,#16233b,#0e1726);border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:20px;letter-spacing:.2px}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 64px)}
+  .controls{background:var(--panel);border-right:1px solid var(--line);padding:16px 16px 40px;overflow:auto}
+  .main{padding:16px 18px 48px;overflow:auto}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent);margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  h2:first-child{margin-top:0}
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .presets button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 6px;font-size:12px;cursor:pointer;text-align:left;transition:.12s}
+  .presets button:hover{border-color:var(--accent)}
+  .presets button.active{background:var(--accent);color:#03263a;border-color:var(--accent);font-weight:600}
+  .presets button small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+  .presets button.active small{color:#0a3a56}
+  .slider{margin:13px 0}
+  .slider label{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;margin-bottom:3px}
+  .slider label .val{font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+  .slider label .unit{color:var(--muted);font-weight:400;font-size:11px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:4px}
+  .hint{font-size:11px;color:var(--muted);margin-top:2px}
+  /* readouts */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .card .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .card .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .card .s{font-size:11px;color:var(--muted);margin-top:1px}
+  .card.flag .v{color:var(--accent)}
+  .panelbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:14px 0}
+  .panelbox h3{margin:0 0 4px;font-size:14px}
+  .panelbox .sub{color:var(--muted);font-size:12px;margin:0 0 10px}
+  canvas{display:block;width:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;margin-top:8px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .risk{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+  .risk.low{background:rgba(54,211,153,.15);color:var(--good);border:1px solid var(--good)}
+  .risk.mod{background:rgba(251,189,35,.15);color:var(--warn);border:1px solid var(--warn)}
+  .risk.high{background:rgba(248,114,114,.15);color:var(--bad);border:1px solid var(--bad)}
+  .teach{font-size:13px;color:#cdddf2}
+  .teach b{color:var(--ink)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .formula{font-family:"SFMono-Regular",Consolas,monospace;background:#0b1322;border:1px solid var(--line);
+    border-radius:6px;padding:2px 7px;color:var(--accent);font-size:12px;white-space:nowrap}
+  .tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:10px;background:var(--panel2);color:var(--muted);border:1px solid var(--line);margin-left:6px}
+  .toggle{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:8px}
+  .toggle input{accent-color:var(--accent)}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}.controls{border-right:none;border-bottom:1px solid var(--line)}.cards{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}}
+  footer{padding:14px 22px;color:var(--muted);font-size:11px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>High-Frequency Ventilation — Lung Mechanics & Pressure Transmission</h1>
+  <p>Interactive teaching model of impedance, pressure dampening, corner &amp; resonant frequency, and barotrauma risk in the neonatal lung. Adjust the lung and the ventilator, and watch the oscillation travel from the airway opening to the alveoli.</p>
+</header>
+
+<div class="wrap">
+  <!-- ================= CONTROLS ================= -->
+  <aside class="controls">
+    <h2>Clinical preset</h2>
+    <div class="presets" id="presets"></div>
+
+    <h2>Lung mechanics</h2>
+    <div class="slider">
+      <label>Compliance (C) <span><span class="val" id="vC"></span> <span class="unit">mL/cmH₂O</span></span></label>
+      <input type="range" id="C" min="0.1" max="8" step="0.1">
+      <div class="hint">Volume gained per unit pressure. ↓C in RDS/HMD.</div>
+    </div>
+    <div class="slider">
+      <label>Airway resistance (R) <span><span class="val" id="vR"></span> <span class="unit">cmH₂O·s/L</span></span></label>
+      <input type="range" id="R" min="20" max="300" step="2">
+      <div class="hint">↑R in MAS / BPD / narrow ET tube.</div>
+    </div>
+    <div class="slider">
+      <label>Inertance (I) <span><span class="val" id="vI"></span> <span class="unit">cmH₂O·s²/L</span></span></label>
+      <input type="range" id="I" min="0.01" max="0.05" step="0.001">
+      <div class="hint">Mass/acceleration term — matters because flow reverses many times per second.</div>
+    </div>
+
+    <h2>Ventilator settings</h2>
+    <div class="slider">
+      <label>Frequency (f) <span><span class="val" id="vf"></span> <span class="unit">Hz</span></span></label>
+      <input type="range" id="f" min="3" max="20" step="0.5">
+      <div class="hint" id="fHint"></div>
+    </div>
+    <div class="slider">
+      <label>Amplitude ΔP at airway opening <span><span class="val" id="vAmp"></span> <span class="unit">cmH₂O</span></span></label>
+      <input type="range" id="Amp" min="10" max="80" step="1">
+      <div class="hint">Peak-to-peak swing into the circuit. Started near <b>2× MAP</b>; above that the opening trough goes sub-atmospheric (see waveform).</div>
+    </div>
+    <div class="slider">
+      <label>Mean airway pressure (P̄aw) <span><span class="val" id="vPaw"></span> <span class="unit">cmH₂O</span></span></label>
+      <input type="range" id="Paw" min="5" max="25" step="1">
+      <div class="hint">The distending pressure the oscillation rides on.</div>
+    </div>
+    <div class="slider">
+      <label>ET-tube resistance (R<sub>ETT</sub>) <span><span class="val" id="vRett"></span> <span class="unit">cmH₂O·s/L</span></span></label>
+      <input type="range" id="Rett" min="20" max="250" step="5">
+      <div class="hint">Proximal resistance across which the OPR is measured.</div>
+    </div>
+
+    <div class="toggle">
+      <input type="checkbox" id="showHealthy" checked>
+      <label for="showHealthy">Overlay healthy-lung reference on curves</label>
+    </div>
+    <div class="toggle">
+      <input type="checkbox" id="anim" checked>
+      <label for="anim">Animate oscillations</label>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+
+    <!-- LIVE CARDS -->
+    <div class="cards">
+      <div class="card"><div class="k">Time constant τ = R·C</div><div class="v" id="oTau"></div><div class="s">elastic + resistive memory</div></div>
+      <div class="card flag"><div class="k">Corner freq f<sub>c</sub> = 1/2πRC</div><div class="v" id="oFc"></div><div class="s">knee of impedance curve</div></div>
+      <div class="card flag"><div class="k">Resonant freq f₀ = 1/2π√(IC)</div><div class="v" id="oF0"></div><div class="s">impedance minimum</div></div>
+      <div class="card"><div class="k">Oscillatory pressure ratio</div><div class="v" id="oOPR"></div><div class="s">ΔP carina ÷ ΔP opening</div></div>
+    </div>
+    <div class="cards">
+      <div class="card"><div class="k">ΔP at carina</div><div class="v" id="oPcar"></div><div class="s">cmH₂O peak-to-peak</div></div>
+      <div class="card"><div class="k">ΔP at alveoli</div><div class="v" id="oPalv"></div><div class="s">cmH₂O peak-to-peak</div></div>
+      <div class="card"><div class="k">Delivered V<sub>T</sub></div><div class="v" id="oVt"></div><div class="s">≈ stroke per breath</div></div>
+      <div class="card"><div class="k">Barotrauma risk</div><div class="v"><span class="risk" id="oRisk"></span></div><div class="s" id="oRiskSub"></div></div>
+    </div>
+
+    <!-- AIRWAY ANIMATION -->
+    <div class="panelbox">
+      <h3>1 · Pressure dampening along the airway <span class="tag">how the wave travels</span></h3>
+      <p class="sub">The set amplitude is <b>not</b> transmitted fully to the alveoli — impedance damps each oscillation as it travels distally. Watch the same breath at three sites. Note that low tidal volume does <i>not</i> guarantee low alveolar pressure swing.</p>
+      <div class="grid2">
+        <div>
+          <canvas id="airwayCanvas" height="300"></canvas>
+        </div>
+        <div>
+          <canvas id="waveCanvas" height="300"></canvas>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ao)"></i> Airway opening</span>
+        <span><i class="swatch" style="background:var(--carina)"></i> Carina / central airway</span>
+        <span><i class="swatch" style="background:var(--alv)"></i> Alveolus</span>
+      </div>
+      <p class="teach" id="teachAirway" style="margin-top:10px"></p>
+    </div>
+
+    <!-- IMPEDANCE CURVE -->
+    <div class="panelbox">
+      <h3>2 · Impedance vs frequency — finding the efficient window <span class="tag">fc &amp; f₀</span></h3>
+      <p class="sub">Total respiratory impedance |Z| = √(R² + (2πf·I − 1/2πf·C)²). It is dominated by elastance at low f and by inertance at high f, with a broad minimum at the resonant frequency. The shaded band from f<sub>c</sub> to f₀ is the low-pressure-cost operating window where oscillations are transmitted most efficiently.</p>
+      <canvas id="impCanvas" height="300"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i> Current lung |Z|</span>
+        <span><i class="swatch" style="background:#5a708f"></i> Healthy reference</span>
+        <span><i class="swatch" style="background:var(--warn)"></i> Corner f<sub>c</sub></span>
+        <span><i class="swatch" style="background:var(--good)"></i> Resonant f₀</span>
+        <span><i class="swatch" style="background:var(--bad)"></i> Your set f</span>
+      </div>
+      <p class="teach" id="teachImp" style="margin-top:10px"></p>
+    </div>
+
+    <!-- TRANSMISSION CURVE -->
+    <div class="panelbox">
+      <h3>3 · Alveolar pressure transmission &amp; the OPR <span class="tag">barotrauma</span></h3>
+      <p class="sub">Fraction of the airway-opening swing that reaches the alveoli, across frequency. Transmission is highest at very low frequency and peaks again at resonance (where alveolar swing can equal or exceed the airway-opening swing). Raising frequency increases dampening — the core reason HFV protects the lung.</p>
+      <canvas id="transCanvas" height="280"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--alv)"></i> Alveolar transmission (ΔP<sub>alv</sub>/ΔP<sub>ao</sub>)</span>
+        <span><i class="swatch" style="background:var(--carina)"></i> OPR (carina/opening)</span>
+        <span><i class="swatch" style="background:var(--bad)"></i> Your set f</span>
+      </div>
+      <p class="teach" id="teachTrans" style="margin-top:10px"></p>
+    </div>
+
+  </main>
+</div>
+
+<footer>
+  Model: series resistance–inertance–compliance (R–I–C) analogue of the respiratory system (Venegas &amp; Fredberg). OPR measured across the ET-tube resistance (van Genderingen et al., <i>Pediatr Pulmonol</i> 2002). Built for teaching from Dr Deepak's HFV notes — a simplified amplitude model; clinical settings must always be individualised.
+</footer>
+
+<script>
+/* ============================================================
+   HFV pressure-transmission teaching model
+   Units: C [L/cmH2O], R & Rett [cmH2O·s/L], I [cmH2O·s²/L]
+   Sliders show C in mL/cmH2O (converted internally).
+   ============================================================ */
+
+const PRESETS = [
+  {name:"Healthy term",    sub:"~3.4 kg",      C:5.0, R:45,  I:0.020, f:10, Amp:20, Paw:10, Rett:60},
+  {name:"Healthy preterm", sub:"~1.2 kg",      C:2.2, R:65,  I:0.025, f:12, Amp:18, Paw:9,  Rett:90},
+  {name:"RDS / HMD",       sub:"~1 kg, ↓C",    C:0.8, R:75,  I:0.028, f:13, Amp:26, Paw:13, Rett:90},
+  {name:"Severe HMD",      sub:"~600 g",       C:0.3, R:100, I:0.030, f:15, Amp:30, Paw:15, Rett:110},
+  {name:"MAS / high R",    sub:"~3 kg, ↑Rₐw",  C:3.0, R:220, I:0.030, f:8,  Amp:24, Paw:12, Rett:80},
+  {name:"Evolving BPD",    sub:"~1.5 kg",      C:1.5, R:150, I:0.030, f:9,  Amp:24, Paw:12, Rett:100},
+];
+const HEALTHY = PRESETS[0];
+
+const S = {C:5.0, R:45, I:0.020, f:10, Amp:20, Paw:10, Rett:60};
+let activePreset = 0;
+
+/* ---------- core physics ---------- */
+function mech(p){                 // p uses C in mL/cmH2O
+  const C = p.C/1000;             // -> L/cmH2O
+  const R = p.R, I = p.I, Rett = p.Rett;
+  const w = 2*Math.PI*p.f;
+  const Xe = 1/(w*C);             // elastance reactance
+  const Xi = w*I;                 // inertance reactance
+  const Zlung = Math.sqrt(R*R + (Xi-Xe)**2);          // beyond ET tube
+  const Ztot  = Math.sqrt((R+Rett)**2 + (Xi-Xe)**2);  // including ET tube
+  const OPR   = Zlung/Ztot;                            // carina/opening
+  const Talv  = Xe/Ztot;                               // alveolar transmission
+  const tau   = R*C;                                   // s
+  const fc    = 1/(2*Math.PI*R*C);                     // Hz
+  const f0    = 1/(2*Math.PI*Math.sqrt(I*C));          // Hz
+  const Q     = p.Amp/Ztot;                            // peak-to-peak flow (L/s)
+  const Vt    = (Q/w)*1000;                            // mL peak-to-peak
+  const dPcar = OPR*p.Amp;
+  const dPalv = Talv*p.Amp;
+  return {C,R,I,Rett,w,Xe,Xi,Zlung,Ztot,OPR,Talv,tau,fc,f0,Q,Vt,dPcar,dPalv};
+}
+function impedanceAt(p,f){        // |Z| of respiratory system (airway R, I, C) — excludes ETT
+  const C=p.C/1000, w=2*Math.PI*f;
+  const Xe=1/(w*C), Xi=w*p.I;
+  return Math.sqrt(p.R**2 + (Xi-Xe)**2);
+}
+function transAt(p,f){
+  const C=p.C/1000, w=2*Math.PI*f;
+  const Xe=1/(w*C), Xi=w*p.I;
+  return Xe/Math.sqrt((p.R+p.Rett)**2 + (Xi-Xe)**2);
+}
+function oprAt(p,f){
+  const C=p.C/1000, w=2*Math.PI*f;
+  const Xe=1/(w*C), Xi=w*p.I;
+  return Math.sqrt(p.R*p.R+(Xi-Xe)**2)/Math.sqrt((p.R+p.Rett)**2+(Xi-Xe)**2);
+}
+
+/* ---------- DOM wiring ---------- */
+const ids=["C","R","I","f","Amp","Paw","Rett"];
+ids.forEach(id=>{ document.getElementById(id).addEventListener("input",e=>{
+  S[id]=parseFloat(e.target.value); activePreset=-1; syncPresetButtons(); render();
+});});
+document.getElementById("showHealthy").addEventListener("change",render);
+document.getElementById("anim").addEventListener("change",()=>{ if(document.getElementById("anim").checked) loop(); });
+
+const presetWrap=document.getElementById("presets");
+PRESETS.forEach((p,i)=>{
+  const b=document.createElement("button");
+  b.innerHTML=`${p.name}<small>${p.sub}</small>`;
+  b.onclick=()=>{ Object.assign(S,{C:p.C,R:p.R,I:p.I,f:p.f,Amp:p.Amp,Paw:p.Paw,Rett:p.Rett});
+    activePreset=i; syncSliders(); syncPresetButtons(); render(); };
+  presetWrap.appendChild(b);
+});
+function syncPresetButtons(){ [...presetWrap.children].forEach((b,i)=>b.classList.toggle("active",i===activePreset)); }
+function syncSliders(){ ids.forEach(id=>document.getElementById(id).value=S[id]); }
+
+/* ---------- number formatting ---------- */
+const f1=x=>x.toFixed(1), f2=x=>x.toFixed(2), f0d=x=>Math.round(x);
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+let DPR=window.devicePixelRatio||1;
+function setupCanvas(cv){
+  const w=cv.clientWidth, h=cv.height;
+  cv.width=w*DPR; cv.height=h*DPR;
+  const ctx=cv.getContext("2d"); ctx.setTransform(DPR,0,0,DPR,0,0);
+  return {ctx,w,h};
+}
+
+function render(){
+  const m=mech(S);
+  // slider value labels
+  vC.textContent=f1(S.C); vR.textContent=f0d(S.R); vI.textContent=f2(S.I);
+  vf.textContent=f1(S.f); vAmp.textContent=f0d(S.Amp); vPaw.textContent=f0d(S.Paw); vRett.textContent=f0d(S.Rett);
+  // cards
+  oTau.textContent=(m.tau*1000).toFixed(0)+" ms";
+  oFc.textContent=f1(m.fc)+" Hz";
+  oF0.textContent=f1(m.f0)+" Hz";
+  oOPR.textContent=f2(m.OPR);
+  oPcar.textContent=f1(m.dPcar);
+  oPalv.textContent=f1(m.dPalv);
+  oVt.textContent=f1(m.Vt)+" mL";
+
+  // frequency hint vs window
+  fHint.textContent = (S.f<m.fc) ? "Below corner frequency — elastance-dominated, high alveolar transmission."
+    : (S.f<=m.f0) ? "In the efficient fc→f₀ window." : "Above resonance — inertance-dominated.";
+
+  // barotrauma risk: driven by the TRANSMITTED swing (amplitude × frequency-dependent transmission)
+  const risk = m.dPalv*0.7 + m.dPcar*0.3;
+  let rc,rt,rs;
+  if(risk<9){rc="low";rt="LOW";rs="Well-damped — raising f damps further.";}
+  else if(risk<16){rc="mod";rt="MODERATE";rs="↑ frequency or ↓ amplitude to reduce it.";}
+  else {rc="high";rt="HIGH";rs="Large swing reaching lung — ↑ frequency / ↓ amplitude.";}
+  oRisk.className="risk "+rc; oRisk.textContent=rt; oRiskSub.textContent=rs;
+
+  // teaching text
+  teachAirway.innerHTML = teachAirwayText(m);
+  teachImp.innerHTML = teachImpText(m);
+  teachTrans.innerHTML = teachTransText(m);
+
+  drawAirway(m); drawImpedance(m); drawTrans(m);
+}
+
+/* ---------- teaching narratives ---------- */
+function teachAirwayText(m){
+  const ratio=S.Amp/S.Paw, trough=S.Paw-S.Amp/2;
+  let t=`At ${f1(S.f)} Hz the airway-opening swing of <b>${f0d(S.Amp)} cmH₂O</b> is damped to <b>${f1(m.dPcar)}</b> at the carina and <b>${f1(m.dPalv)} cmH₂O</b> at the alveoli (OPR ${f2(m.OPR)}). `;
+  t+=`<b>Barotrauma depends on both amplitude and frequency</b>: the injurious quantity is the swing that actually reaches the lung (amplitude × transmission). Raise the frequency at the same amplitude and the transmitted ΔP falls — try it. `;
+  const alvTrough=S.Paw-m.dPalv/2;
+  t+=`Current ΔP:MAP ratio is <b>${ratio.toFixed(1)}×</b> (rule of thumb: start near 2×). `;
+  if(trough<0) t+=`<span style="color:var(--warn)">ΔP > 2×MAP, so the airway-opening pressure swings to ${trough.toFixed(0)} cmH₂O — sub-atmospheric. True HFOV oscillators do actively pull below the mean, but a very negative opening pressure risks airway collapse/derecruitment, which is why amplitude is usually started ~2×MAP. Note that dampening keeps the alveolar trough at +${alvTrough.toFixed(0)} cmH₂O — the alveoli are protected from the negative swing.</span> `;
+  if(S.C<1.2) t+=`This <b>low-compliance (RDS-type)</b> lung has a short time constant, so a higher proportion of the swing reaches the alveoli — barotrauma risk rises but recruitment also improves. `;
+  if(S.R>160) t+=`<b>High resistance</b> raises impedance and protects the alveoli, but a higher amplitude is then needed for the same V<sub>T</sub>, transmitting more pressure to airways <i>proximal</i> to the obstruction. `;
+  return t;
+}
+function teachImpText(m){
+  return `f<sub>c</sub> = ${f1(m.fc)} Hz and f₀ = ${f1(m.f0)} Hz. ${m.fc<m.f0?"The lung is <b>overdamped</b> (f<sub>c</sub> below f₀), as is typical for neonates. ":"Lightly damped — f<sub>c</sub> approaches f₀. "}`
+    +`Lower compliance shifts both frequencies <b>up</b> (why stiff RDS lungs are run faster, ~12–15 Hz); higher resistance shifts f<sub>c</sub> <b>down</b> and narrows the efficient band.`;
+}
+function teachTransText(m){
+  return `Your setting transmits <b>${(m.Talv*100).toFixed(0)}%</b> of the airway-opening swing to the alveoli. Because the neonatal lung is heavily <b>overdamped</b>, transmission falls monotonically as frequency rises — this is exactly why faster HFV is lung-protective. (A resonance peak that can push alveolar swing above the opening swing only emerges in lightly-damped systems.) The OPR is lowest at maximal compliance/recruitment and rises if the lung is collapsed (low Paw) or overdistended (high Paw).`;
+}
+
+/* ---------- 1. AIRWAY SCHEMATIC + WAVES ---------- */
+let phase=0;
+function drawAirway(m){
+  const {ctx,w,h}=setupCanvas(airwayCanvas);
+  ctx.clearRect(0,0,w,h);
+  // sites along a tapering airway
+  const sites=[
+    {x:w*0.16,label:"Opening",dp:S.Amp,col:"#37c2ff",r:34},
+    {x:w*0.50,label:"Carina",dp:m.dPcar,col:"#34d399",r:26},
+    {x:w*0.84,label:"Alveolus",dp:m.dPalv,col:"#a78bfa",r:22},
+  ];
+  // connecting airway path
+  ctx.strokeStyle="#33486b"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(sites[0].x,h*0.5);
+  ctx.lineTo(sites[1].x,h*0.5); ctx.lineTo(sites[2].x,h*0.5); ctx.stroke();
+  ctx.fillStyle="#9bb0cd"; ctx.font="11px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("ventilator → ET tube → central airways → alveoli", w/2, 18);
+
+  const maxDp=S.Amp;
+  sites.forEach(s=>{
+    const pulse = document.getElementById("anim").checked ? Math.sin(phase) : 1;
+    const amp = (s.dp/maxDp); // 0..1
+    const rad = s.r*(0.7+0.5*amp*(0.5+0.5*pulse));
+    // glow ring proportional to pressure swing
+    ctx.beginPath(); ctx.arc(s.x,h*0.5,rad,0,2*Math.PI);
+    ctx.fillStyle=s.col+"33"; ctx.fill();
+    ctx.beginPath(); ctx.arc(s.x,h*0.5,Math.max(8,rad*0.6),0,2*Math.PI);
+    ctx.fillStyle=s.col; ctx.fill();
+    // label + value
+    ctx.fillStyle="#e8eef7"; ctx.font="bold 13px sans-serif";
+    ctx.fillText(s.label, s.x, h*0.5+rad+18);
+    ctx.fillStyle=s.col; ctx.font="bold 15px sans-serif";
+    ctx.fillText(f1(s.dp)+" cmH₂O", s.x, h*0.5+rad+36);
+  });
+  // dampening arrows
+  ctx.fillStyle="#6b80a0"; ctx.font="11px sans-serif";
+  ctx.fillText("dampening →", (sites[0].x+sites[1].x)/2, h*0.5-46);
+  ctx.fillText("dampening →", (sites[1].x+sites[2].x)/2, h*0.5-46);
+}
+
+function drawWaves(m){
+  const {ctx,w,h}=setupCanvas(waveCanvas);
+  ctx.clearRect(0,0,w,h);
+  const MAP=S.Paw;
+  const pTop=MAP+S.Amp/2, pBot=MAP-S.Amp/2;
+  const pmax=pTop+3, pmin=Math.min(-3,pBot-3);
+  const pad={l:44,r:64,t:24,b:18};
+  const Y=p=>pad.t+(h-pad.t-pad.b)*(pmax-p)/(pmax-pmin);
+  const X0=pad.l, X1=w-pad.r;
+  // shade sub-atmospheric region
+  if(pmin<0){ ctx.fillStyle="rgba(248,114,114,0.10)"; ctx.fillRect(X0,Y(0),X1-X0,Y(pmin)-Y(0)); }
+  // y axis + pressure ticks
+  ctx.strokeStyle="#3a4f70"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.stroke();
+  ctx.font="10px sans-serif"; ctx.textAlign="right"; ctx.fillStyle="#7d92b3";
+  [pmax,MAP+S.Amp/2,MAP,0,pmin].forEach(p=>{ ctx.fillText(p.toFixed(0),pad.l-5,Y(p)+3); });
+  // zero (atmospheric) line
+  ctx.strokeStyle="#f87272"; ctx.lineWidth=1.5; ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(X0,Y(0)); ctx.lineTo(X1,Y(0)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#f87272"; ctx.textAlign="left"; ctx.font="10px sans-serif"; ctx.fillText("0 atmospheric",X0+3,Y(0)-3);
+  // MAP line
+  ctx.strokeStyle="#7d92b3"; ctx.lineWidth=1; ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(X0,Y(MAP)); ctx.lineTo(X1,Y(MAP)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle="#9bb0cd"; ctx.fillText("MAP "+MAP.toFixed(0),X0+3,Y(MAP)-3);
+  // three pressure waves on one absolute scale, all riding on MAP
+  const waves=[
+    {label:"Opening",dp:S.Amp,col:"#37c2ff"},
+    {label:"Carina",dp:m.dPcar,col:"#34d399"},
+    {label:"Alveolus",dp:m.dPalv,col:"#a78bfa"},
+  ];
+  const animOn=document.getElementById("anim").checked, cycles=4;
+  waves.forEach(wv=>{
+    ctx.strokeStyle=wv.col; ctx.lineWidth=2; ctx.beginPath();
+    for(let px=0;px<=X1-X0;px++){ const t=px/(X1-X0);
+      const p=MAP+(wv.dp/2)*Math.sin(2*Math.PI*cycles*t+(animOn?phase:0));
+      const y=Y(p); px===0?ctx.moveTo(X0+px,y):ctx.lineTo(X0+px,y); }
+    ctx.stroke();
+    // right-edge label at its current peak
+    const p=MAP+(wv.dp/2)*Math.sin(2*Math.PI*cycles+(animOn?phase:0));
+    ctx.fillStyle=wv.col; ctx.font="10px sans-serif"; ctx.textAlign="left";
+    ctx.fillText(wv.label,X1+4,Y(MAP+wv.dp/2)+3);
+  });
+  // title / warning
+  ctx.textAlign="left"; ctx.font="11px sans-serif";
+  if(pBot<0){ ctx.fillStyle="#f87272"; ctx.fillText("⚠ opening trough "+pBot.toFixed(0)+" cmH₂O — sub-atmospheric (ΔP > 2×MAP)",X0,14); }
+  else { ctx.fillStyle="#9bb0cd"; ctx.fillText("Absolute pressure: each wave = MAP ± ΔP/2",X0,14); }
+}
+
+/* ---------- log-frequency axis plotting ---------- */
+const PF_MIN=1, PF_MAX=50;               // plotted frequency window (Hz, log)
+const LMIN=Math.log10(PF_MIN), LMAX=Math.log10(PF_MAX);
+function Xlog(f,pad,w){ const fc=Math.max(PF_MIN,Math.min(PF_MAX,f));
+  return pad.l+(w-pad.l-pad.r)*(Math.log10(fc)-LMIN)/(LMAX-LMIN); }
+
+function axesLog(ctx,w,h,pad,ymax,ylab,yDecimals){
+  ctx.strokeStyle="#3a4f70"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
+  ctx.font="11px sans-serif";
+  // log x gridlines at 1,2,3,5,10,20,30,50
+  const ticks=[1,2,3,5,10,20,30,50];
+  ctx.textAlign="center";
+  ticks.forEach(t=>{ const px=Xlog(t,pad,w);
+    ctx.strokeStyle="#1c2c45"; ctx.beginPath(); ctx.moveTo(px,pad.t);ctx.lineTo(px,h-pad.b);ctx.stroke();
+    ctx.fillStyle="#7d92b3"; ctx.fillText(t,px,h-pad.b+14);});
+  // y gridlines
+  ctx.textAlign="right";
+  for(let i=0;i<=5;i++){ const yv=ymax*i/5; const py=h-pad.b-(h-pad.t-pad.b)*i/5;
+    ctx.strokeStyle="#1c2c45"; ctx.beginPath(); ctx.moveTo(pad.l,py);ctx.lineTo(w-pad.r,py);ctx.stroke();
+    ctx.fillStyle="#7d92b3"; ctx.fillText(yv.toFixed(yDecimals),pad.l-6,py+3);}
+  ctx.fillStyle="#9bb0cd"; ctx.textAlign="center"; ctx.font="11px sans-serif";
+  ctx.fillText("Frequency (Hz) — log scale",(pad.l+w-pad.r)/2,h-2);
+  ctx.save(); ctx.translate(12,(pad.t+h-pad.b)/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(ylab,0,0); ctx.restore();
+}
+// vertical marker; if freq off-scale, draw an edge triangle instead
+function fmark(ctx,pad,w,h,f,col,label){
+  const inRange = f>=PF_MIN && f<=PF_MAX;
+  const px=Xlog(f,pad,w);
+  if(inRange){
+    ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(px,pad.t); ctx.lineTo(px,h-pad.b); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=col; ctx.font="bold 10px sans-serif"; ctx.textAlign="center";
+    ctx.fillText(label,px,pad.t+10);
+  } else {
+    // off-scale annotation at the near edge
+    const left = f<PF_MIN;
+    ctx.fillStyle=col; ctx.font="bold 9px sans-serif"; ctx.textAlign=left?"left":"right";
+    ctx.fillText((left?"◄ ":"")+label+(left?"":" ►"), left?pad.l+3:w-pad.r-3, pad.t+10);
+  }
+}
+function plotCurve(ctx,pad,w,Y,fn,col,lw,dash){
+  ctx.strokeStyle=col; ctx.lineWidth=lw; if(dash)ctx.setLineDash(dash); ctx.beginPath();
+  let s=true;
+  for(let i=0;i<=240;i++){ const f=Math.pow(10,LMIN+(LMAX-LMIN)*i/240); const px=Xlog(f,pad,w),py=Y(fn(f));
+    s?(ctx.moveTo(px,py),s=false):ctx.lineTo(px,py); }
+  ctx.stroke(); if(dash)ctx.setLineDash([]);
+}
+
+/* ---------- 2. IMPEDANCE CURVE ---------- */
+function drawImpedance(m){
+  const {ctx,w,h}=setupCanvas(impCanvas);
+  ctx.clearRect(0,0,w,h);
+  const pad={l:50,r:16,t:14,b:30};
+  const showH=document.getElementById("showHealthy").checked;
+  let ymax=0;
+  for(let i=0;i<=240;i++){ const f=Math.pow(10,LMIN+(LMAX-LMIN)*i/240);
+    ymax=Math.max(ymax,impedanceAt(S,f)); if(showH) ymax=Math.max(ymax,impedanceAt(HEALTHY,f)); }
+  ymax=Math.ceil(ymax/20)*20;
+  axesLog(ctx,w,h,pad,ymax,"|Z| respiratory system (cmH₂O·s/L)",0);
+  const Y=v=>h-pad.b-(h-pad.t-pad.b)*Math.min(v,ymax)/ymax;
+  // efficient window fc..f0
+  const fa=Math.max(PF_MIN,Math.min(PF_MAX,m.fc)), fb=Math.max(PF_MIN,Math.min(PF_MAX,m.f0));
+  if(fb>fa){ ctx.fillStyle="rgba(55,194,255,0.08)"; ctx.fillRect(Xlog(fa,pad,w),pad.t,Xlog(fb,pad,w)-Xlog(fa,pad,w),h-pad.t-pad.b); }
+  if(showH) plotCurve(ctx,pad,w,Y,f=>impedanceAt(HEALTHY,f),"#5a708f",1.5,[5,4]);
+  plotCurve(ctx,pad,w,Y,f=>impedanceAt(S,f),"#37c2ff",2.5,null);
+  fmark(ctx,pad,w,h,m.fc,"#fbbd23","fc "+f1(m.fc)+"Hz");
+  fmark(ctx,pad,w,h,m.f0,"#36d399","f₀ "+f1(m.f0)+"Hz");
+  fmark(ctx,pad,w,h,S.f,"#f87272","set "+f1(S.f)+"Hz");
+  ctx.fillStyle="#f87272"; ctx.beginPath(); ctx.arc(Xlog(S.f,pad,w),Y(impedanceAt(S,S.f)),5,0,2*Math.PI); ctx.fill();
+}
+
+/* ---------- 3. TRANSMISSION CURVE ---------- */
+function drawTrans(m){
+  const {ctx,w,h}=setupCanvas(transCanvas);
+  ctx.clearRect(0,0,w,h);
+  const pad={l:50,r:16,t:14,b:30};
+  let ymax=0;
+  for(let i=0;i<=240;i++){ const f=Math.pow(10,LMIN+(LMAX-LMIN)*i/240); ymax=Math.max(ymax,transAt(S,f),oprAt(S,f)); }
+  ymax=Math.max(1,Math.ceil(ymax*10)/10);
+  axesLog(ctx,w,h,pad,ymax,"Transmission ratio",1);
+  const Y=v=>h-pad.b-(h-pad.t-pad.b)*Math.min(v,ymax)/ymax;
+  if(ymax>=1){ctx.strokeStyle="#3a4f70";ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(pad.l,Y(1));ctx.lineTo(w-pad.r,Y(1));ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#7d92b3";ctx.textAlign="left";ctx.font="10px sans-serif";ctx.fillText("unity (alv = opening swing)",pad.l+4,Y(1)-4);}
+  plotCurve(ctx,pad,w,Y,f=>oprAt(S,f),"#34d399",2,[6,3]);
+  plotCurve(ctx,pad,w,Y,f=>transAt(S,f),"#a78bfa",2.5,null);
+  fmark(ctx,pad,w,h,S.f,"#f87272","set "+f1(S.f)+"Hz");
+  ctx.fillStyle="#a78bfa"; ctx.beginPath(); ctx.arc(Xlog(S.f,pad,w),Y(transAt(S,S.f)),5,0,2*Math.PI); ctx.fill();
+}
+
+/* ---------- animation loop ---------- */
+let running=false;
+function loop(){
+  if(running) return; running=true;
+  function step(){
+    if(!document.getElementById("anim").checked){running=false;return;}
+    phase+=0.12; const m=mech(S);
+    drawAirway(m); drawWaves(m);
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ---------- init ---------- */
+window.addEventListener("resize",()=>{DPR=window.devicePixelRatio||1;render();});
+syncSliders(); syncPresetButtons();
+// set first preset active
+activePreset=0; Object.assign(S,{C:HEALTHY.C,R:HEALTHY.R,I:HEALTHY.I,f:HEALTHY.f,Amp:HEALTHY.Amp,Paw:HEALTHY.Paw,Rett:HEALTHY.Rett});
+syncSliders(); syncPresetButtons(); render(); loop();
+drawWaves(mech(S));   // initial draw in case animation is off
+</script>
+</body>
+</html>

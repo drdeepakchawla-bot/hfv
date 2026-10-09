@@ -1,0 +1,3 @@
+- HFOV: Moves gas back and forth at the airway opening with limited bulk gas flow
+- HFJV: Injects a high-velocity jet of gas directly into the airway with passive exhalation [[HFJV]]
+- HFFI (also called high-frequency percussive ventilation): Also generates pulses of fresh gas flow during inspiration with passive exhalation but does not generate a high-velocity stream of gas

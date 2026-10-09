@@ -1,0 +1,18 @@
+- MAP needed for lung recruitment
+- In HFOV, MAP is set directly and is achieved by the machine by adjusting either the bias flow and/or the resistance to flow in the expiratory valve.
+- In conventional ventilation MAP = mean intraparenchymal pressure (MIP)
+- In HFOV not so, MIP may be equal to, lower, or higher than MAP
+- MIP can not be measured directly
+- MIP>MAP is less common and may occur if MAP is not adequate resulting in airway collapse during expiration (as the latter is active by generating negative pressure in the ventilator circuit)
+- MIP less than MAP is a more common scenario
+- Pressure drop during HFOV Pres = k1.V +k2.(V)<sup>2</sup> where k1 and k2 are constants and V is the flow rate see [[Pressure drop in ET]]
+- Keeping other parameters same
+	- As the amplitude increases, flow increases, and therefore a pressure drop is more
+	- As I:E ratio changes from 1:1 to 1:2 or 1:3, more flow during inspiration (as time is shorter) and therefore more pressure drop during inspiration than expiration. Usually, when switching from CV to HFOV, we set 1:2, so MIP will be lower during HFOV, therefore, need to set MAP 2-3 cm higher to achieve the same MIP as in CV
+	- As frequency increases, flow increases and therefore pressure drop increases
+	- As ET size reduces, flow increases and therefore pressure drop increases
+	- Keeping I:E ratio 1:1 reduces the differential effect of change in inspiratory and expiratory flow that occurs with the change in other parameters and therefore keeps MIP and MAP close to each other ![[Screen Shot 2023-02-09 at 9.34.45 PM.png]]
+- How to achieve optimum optimal lung volume: [[Lung recruitment maneuver]]
+- Maintaining optimal lung volume: Keep track of the lung condition and change MAP accordingly
+- Avoid atelectasis by - preventing the build-up of secretions, proper humidification, adequate MAP, recruitment after suction, and adding sigh breaths if no spontaneous efforts (longer Ti sends pressure to distal segments of the lung)
+- Avoid overdistension by - prevent both static overdistension and cyclic overdistension

@@ -1,0 +1,7 @@
+- Use of lower peak alveolar pressures (note this is not peak _inspiratory_ pressure)
+- Therefore > the preservation of normal lung architecture even when using high MAP
+- Relatively easier to achieve lung recruitment in a diseased lung
+- Ability to manage oxygenation and ventilation relatively independently (note _relatively_)
+- Enhances both distribution and diffusion of gases
+- Results in efficient CO<sub>2</sub> elimination independent of mean lung volume (see [[Gas exchange in HFV]])
+- Improved distribution of medications like inhaled NO

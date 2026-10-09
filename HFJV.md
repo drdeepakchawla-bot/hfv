@@ -1,0 +1,25 @@
+- Bunnell Lifepulse is the most commonly used HFJV
+- Following settings to be done
+	- PIP - maximum pressure delivered with each high-frequency breath
+	- Ti - usually started at 0.02 seconds, can be increased up to 0.034 seconds 
+	- Rates - 240 to 660 (4 to 11 Hz)
+- Following parameters are monitored and displayed
+	- PIP
+	- Servo: Internal drive pressure of the LifePulse; indicates how much gas flow must be produced to meet the set PIP, Rate, and I-Time. Higher servo means more gas flow which indicates improving compliance or ET leak
+	- PEEP
+	- Delta P
+	- MAP
+- Need to use a special ET adapter that has two additional openings - to deliver the high-flow jet of gas and to measure the pressure
+- HFJV needs to be used with a conventional ventilator. The role of the CV is to provide
+	- Fresh gas when the patient breaths spontaneously
+	- Provide PEEP - that maintains MAP
+	- Provide sigh breaths to recruit alveoli
+	- Generates alarm for change in pressure
+- Advantages of HFJV over HFOV
+	- More suitable for air leaks as
+		- The jet of gas travels in the central part of the airways
+		- Very short Ti
+		- Carbon dioxide removal at lower peak airway pressures and MAP than in HFOV
+	- Effective in nonhomogenous lung conditions as more effective carbon dioxide removal e.g., PIE or air leaks, MAS, BPD
+	- Less impairment of venous return than in HFOV as MAP is lower
+- Risk of NTB as very high velocity jet stream - need to have effective humidification system
